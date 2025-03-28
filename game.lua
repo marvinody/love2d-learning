@@ -1,3 +1,7 @@
+
+Timer = require "lib/hump/timer"
+ColorUtil = require "colorutil"
+
 local game = {
     player = {
         items = {},
@@ -10,6 +14,12 @@ local game = {
         max_health = 4,
     },
     gun = {
+        draw_vars = {
+            xStart = 0.5, -- center of the screen
+            yStart = 0.5, -- center of the screen
+            xSpacing = 5, -- spacing between rounds
+            radius = 10,
+        },
         rounds = {},
         total_rounds = 0,
         current_round = 1,
@@ -50,11 +60,17 @@ local function generate_gun_rounds()
      -- generate rounds
     for i = 1, total_rounds do
         local round_type = math.random(1, 2) -- 1 for bullet, 2 for blank
-        if round_type == 1 then
-            table.insert(game.gun.rounds, "bullet")
-        else
-            table.insert(game.gun.rounds, "blank")
-        end
+        local round = { 
+            type = (round_type == 1) and "bullet" or "blank",
+            used = false,
+            direction = "",
+            dmg = 1,
+            pos = {
+                x = love.graphics.getWidth() * game.gun.draw_vars.xStart + (i - 1) * (game.gun.draw_vars.radius * 2 + game.gun.draw_vars.xSpacing),
+                y = love.graphics.getHeight() * game.gun.draw_vars.yStart 
+            }, -- initial position
+        }
+        table.insert(game.gun.rounds, round)
     end
 
     -- TODO shuffle the rounds to randomize their order
@@ -77,22 +93,15 @@ local function draw_gun_rounds()
     -- blanks are blue, bullets are red
     local x = love.graphics.getWidth() * 0.5
     local y = love.graphics.getHeight() * 0.5
-    local radius = 10
-    local spacing = 5
-    for i = 1, game.gun.total_rounds do
-        local color = (game.gun.rounds[i] == "bullet") and {1, 0, 0} or {0, 0, 1}
-        love.graphics.setColor(color)
-        love.graphics.circle("fill", x + (i - 1) * (radius * 2 + spacing), y, radius)
-        -- if it's been used, draw an X through it
-        if i < game.gun.current_round then
-            love.graphics.setColor(1, 1, 1) -- white for the X
-            love.graphics.setLineWidth(2)
-            love.graphics.line(x + (i - 1) * (radius * 2 + spacing) - radius, y - radius,
-                              x + (i - 1) * (radius * 2 + spacing) + radius, y + radius)
-            love.graphics.line(x + (i - 1) * (radius * 2 + spacing) + radius, y - radius,
-                              x + (i - 1) * (radius * 2 + spacing) - radius, y + radius)
+    local radius = game.gun.draw_vars.radius
+    local spacing = game.gun.draw_vars.xSpacing
+    for i, round in ipairs(game.gun.rounds) do
+        local color = (round.type == "bullet") and {1, 0, 0} or {0, 0, 1}
+        if round.used then
+            color = ColorUtil.adjustLightness(color, -0.5) -- darken color if used
         end
-
+        love.graphics.setColor(color)
+        love.graphics.circle("fill", round.pos.x, round.pos.y, radius)
     end
     love.graphics.setColor(1, 1, 1) -- Reset color to white
 end
@@ -172,47 +181,72 @@ local function handle_mousepressed_buttons(mx, my, button)
     end
 end
 
-local function do_enemy_turn()
-    -- Handle enemy's turn logic here
+local do_enemy_turn -- forward declaration for enemy turn logic
+
+-- direction is just "player" or "enemy" and bullet is the object
+local function handle_shooting_generic(direction, bullet)
+    bullet.used = true
+
+
+    -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
+    -- and up/down
+    local target_x = (love.graphics.getWidth() * 0.5 + math.random(-50, 50))
+    local target_y = (direction == "player") and (love.graphics.getHeight() * 0.9) or (love.graphics.getHeight() * 0.1 + math.random(-50, 50))
+    print("Tweening bullet to target:", target_x, target_y)
+    local tween_duration = 0.2 -- duration of the tween in seconds
+    Timer.tween(tween_duration, bullet.pos, {x = target_x, y = target_y}, 'in-linear', function()
+        -- Callback after tweening is done, you can add any additional logic here
+        bullet.used = true -- mark the bullet as used
+        game.gun.current_round = math.min(game.gun.current_round + 1, game.gun.total_rounds)
+        
+        if bullet.type == "bullet" then
+            if direction == "player" then
+                game.player.health = math.max(0, game.player.health - bullet.dmg)
+            elseif direction == "enemy" then
+                game.enemy.health = math.max(0, game.enemy.health - bullet.dmg)
+            end
+        end
+
+        -- if turn and direction are the same, the actor gets to shoot again
+        if game.turn == direction and bullet.type == "blank" then
+            -- no op. but we enable the buttons again for the player to shoot again if it's their turn
+            if game.turn == "player" then
+                game.buttons.shoot.disabled = false
+                game.buttons.pass.disabled = false
+            end
+        else
+            -- we know that an actor shot the other actor, so we switch turns no matter what
+            if game.turn == "player" then
+                game.turn = "enemy"
+                do_enemy_turn() -- handle enemy's turn logic
+            else
+                game.turn = "player"
+                game.buttons.shoot.disabled = false
+                game.buttons.pass.disabled = false
+            end
+        end
+
+        
+    end)
+end
+
+do_enemy_turn = function()    -- Handle enemy's turn logic here
     -- For simplicity, let's say the enemy always shoors
     local current_round = game.gun.rounds[game.gun.current_round]
-    if current_round == "bullet" then
-        -- Enemy hits itself, lose health
-        game.enemy.health = math.max(0, game.enemy.health - 1)
-    end
-    -- Move to the next round
-    game.gun.current_round = math.min(game.gun.current_round + 1, game.gun.total_rounds)
-    -- Disable buttons if all rounds are used, otherwise enable them for player turn
-    if game.gun.current_round > game.gun.total_rounds then
-        game.buttons.shoot.disabled = true
-        game.buttons.pass.disabled = true
-    else
-        game.buttons.shoot.disabled = false
-        game.buttons.pass.disabled = false
-    end
+    print("Enemy's turn, current round type:", current_round.type)
+    handle_shooting_generic("player", current_round)
 end
 
 local function button_shoot_action()
     -- Handle the shoot button action
     if not game.buttons.shoot.disabled then
-        local damage = 1 -- Define the damage value at the top
-        local current_round = game.gun.rounds[game.gun.current_round]
-        print("Current round idx:", game.gun.current_round)
-        print("Current round type:", current_round)
-        if current_round == "bullet" then
-            -- Player hit the enemy
-            game.enemy.health = math.max(0, game.enemy.health - damage)
-        end
-        -- Move to the next round
-        game.gun.current_round = math.min(game.gun.current_round + 1, game.gun.total_rounds)
-        -- Disable buttons for enemy turn or all rounds used
         game.buttons.shoot.disabled = true
         game.buttons.pass.disabled = true
-        
-        -- Switch turn to enemy if player passes
-        if game.turn == "player" then
-            game.turn = "enemy"
-        end
+        local current_round = game.gun.rounds[game.gun.current_round]
+        print("Current round idx:", game.gun.current_round)
+        print("Current round type:", current_round.type)
+        -- always towards enemy since shoot
+        handle_shooting_generic("enemy", current_round)
     end
 end
 
@@ -222,18 +256,10 @@ local function button_pass_action()
     -- if it's a blank, player gets to shoot again (pass)
     -- if it's a bullet, player loses health and enemy gets to shoot
     if not game.buttons.pass.disabled then
+        game.buttons.shoot.disabled = true
+        game.buttons.pass.disabled = true
         local current_round = game.gun.rounds[game.gun.current_round]
-        if current_round == "bullet" then
-            -- Player hit himself, lose health
-            game.player.health = math.max(0, game.player.health - 1)
-        end
-        -- Move to the next round
-        game.gun.current_round = math.min(game.gun.current_round + 1, game.gun.total_rounds)
-        -- Disable buttons if all rounds are used
-        if game.gun.current_round > game.gun.total_rounds then
-            game.buttons.shoot.disabled = true
-            game.buttons.pass.disabled = true
-        end
+        handle_shooting_generic("player", current_round)
     end
 end
 
@@ -261,20 +287,21 @@ game.load = function()
     generate_gun_rounds()
     print("Gun rounds generated:")
     for i, round in ipairs(game.gun.rounds) do
-        print(i, round)
+        print(i, round.type)
     end
 end
 
 game.update = function(dt)
     -- Update the game state here, if needed
+    Timer.update(dt)
 end
 
 game.draw = function()
-    draw_health_bar(0.5, 0.9, game.player.health, game.player.max_health)
-    draw_health_bar(0.5, 0.1, game.enemy.health, game.enemy.max_health)
     draw_gun_rounds()
     draw_buttons()
     draw_turn_indicator()
+    draw_health_bar(0.5, 0.9, game.player.health, game.player.max_health)
+    draw_health_bar(0.5, 0.1, game.enemy.health, game.enemy.max_health)
     
 end
 
