@@ -9,7 +9,8 @@ local Actors = {
 -- Enum for bullet types
 local BulletTypes = {
     LIVE = "LIVE",
-    BLANK = "BLANK"
+    BLANK = "BLANK",
+    UNKNOWN = "UNKNOWN" -- just for rendering
 }
 
 return {

@@ -20,8 +20,9 @@ local game = {
         draw_vars = {
             xStart = 0.5, -- center of the screen
             yStart = 0.5, -- center of the screen
-            xSpacing = 5, -- spacing between rounds
-            radius = 10,
+            xSpacing = 2, -- spacing between rounds
+            radius = 16,
+            scaling = 2,
         },
         rounds = {},
         total_rounds = 0,
@@ -77,6 +78,9 @@ local game = {
             draw = false, -- initially hidden
             color = {1, 0, 0},
         },
+    },
+    images = {
+
     }
 }
 
@@ -107,7 +111,7 @@ local function generate_gun_rounds()
             direction = "",
             dmg = 1,
             pos = {
-                x = love.graphics.getWidth() * game.gun.draw_vars.xStart + (i - 1) * (game.gun.draw_vars.radius * 2 + game.gun.draw_vars.xSpacing),
+                x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing),
                 y = love.graphics.getHeight() * game.gun.draw_vars.yStart,
             }, -- initial position
         }
@@ -123,6 +127,13 @@ local function generate_gun_rounds()
         round.type = BulletTypes.BLANK
         round.dmg = 0
         table.insert(game.gun.rounds, round)
+    end
+
+    -- find middle position and offset the rounds so they are centered
+    local total_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing) * total_rounds
+    local offset = (love.graphics.getWidth() - total_width) / 2
+    for i, round in ipairs(game.gun.rounds) do
+        round.pos.x = offset + round.pos.x
     end
 
     game.gun.total_rounds = total_rounds
@@ -190,19 +201,17 @@ end
 local function draw_gun_rounds()
     -- for current -> total rounds, draw the gun rounds
     -- blanks are blue, bullets are red
-    local x = love.graphics.getWidth() * 0.5
-    local y = love.graphics.getHeight() * 0.5
-    local radius = game.gun.draw_vars.radius
-    local spacing = game.gun.draw_vars.xSpacing
     for i, round in ipairs(game.gun.rounds) do
-        local color = (round.type == "bullet") and {1, 0, 0} or {0, 0, 1}
+        local color = {1, 1, 1}
         if round.used then
             color = ColorUtil.adjustLightness(color, -0.5) -- darken color if used
         end
         love.graphics.setColor(color)
-        love.graphics.circle("fill", round.pos.x, round.pos.y, radius)
+        local quad = game.images[round.type]
+        local scaling = game.gun.draw_vars.scaling
+        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling)
+        love.graphics.setColor(1, 1, 1) -- Reset color to white
     end
-    love.graphics.setColor(1, 1, 1) -- Reset color to white
 end
 
 -- local func to help draw health bar
@@ -400,10 +409,23 @@ local function handle_mousereleased_buttons(mx, my, button)
     end
 end
 
+local function load_images()
+    game.images.yinYangSpritesheet = love.graphics.newImage("assets/sprites/yinyang.png")
+    game.images.yinYangSpritesheet:setFilter("nearest", "nearest")
+    game.images[BulletTypes.UNKNOWN] = love.graphics.newQuad(0, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
+    game.images[BulletTypes.LIVE] = love.graphics.newQuad(32, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
+    game.images[BulletTypes.BLANK] = love.graphics.newQuad(64, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
+
+
+end
+
 
 game.load = function()
     math.randomseed(os.time())
     -- Load any resources needed for the game here
+    load_images() -- Load images for the game
+     -- Initialize the game state
+
     initial_game_state()
     generate_gun_rounds()
 
