@@ -1,6 +1,9 @@
 
 Timer = require "lib/hump/timer"
 ColorUtil = require "colorutil"
+Enums = require "enums"
+
+local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
 
 local game = {
     player = {
@@ -24,7 +27,7 @@ local game = {
         total_rounds = 0,
         current_round = 1,
     },
-    turn = "player", -- "player" or "enemy"
+    turn = Actors.PLAYER, -- Actors.PLAYER or Actors.ENEMY
     buttons = {
         shoot = {
             x = 0.4, -- left side of the screen
@@ -83,7 +86,7 @@ local function initial_game_state()
     game.enemy.health = game.enemy.max_health
     game.gun.current_round = 1
     game.gun.rounds = {}
-    game.turn = "player" -- Start with player's turn
+    game.turn = Actors.PLAYER -- Start with player's turn
     game.buttons.shoot.disabled = true
     game.buttons.pass.disabled = true
     game.buttons.game_over_restart.draw = false
@@ -91,26 +94,39 @@ local function initial_game_state()
 end
 
 local function generate_gun_rounds()
-    -- pick random number for total number of rounds in shotgun
-    local total_rounds = math.random(2, 10)
-    -- for each shell, randomly choose if it is a bullet or a blank
-    game.gun.total_rounds = total_rounds
     game.gun.rounds = {} -- reset rounds
-     -- generate rounds
-    for i = 1, total_rounds do
-        local round_type = math.random(1, 2) -- 1 for bullet, 2 for blank
-        local round = { 
-            type = (round_type == 1) and "bullet" or "blank",
+     -- pick a random number of live rounds between 1 and 4
+    local live_rounds = math.random(1, 4)
+    local blank_rounds = math.random(1, 4)
+    local total_rounds = live_rounds + blank_rounds
+
+    local make_bullet_base = function(i)
+        return {
+            type = BulletTypes.LIVE,
             used = false,
             direction = "",
             dmg = 1,
             pos = {
                 x = love.graphics.getWidth() * game.gun.draw_vars.xStart + (i - 1) * (game.gun.draw_vars.radius * 2 + game.gun.draw_vars.xSpacing),
-                y = love.graphics.getHeight() * game.gun.draw_vars.yStart 
+                y = love.graphics.getHeight() * game.gun.draw_vars.yStart,
             }, -- initial position
         }
+    end
+
+    for i = 1, live_rounds do
+        local round = make_bullet_base(i)
         table.insert(game.gun.rounds, round)
     end
+
+    for i = 1, blank_rounds do
+        local round = make_bullet_base(i + live_rounds)
+        round.type = BulletTypes.BLANK
+        round.dmg = 0
+        table.insert(game.gun.rounds, round)
+    end
+
+    game.gun.total_rounds = total_rounds
+    game.gun.current_round = 1 -- reset current round
 
     -- TODO shuffle the rounds to randomize their order
     -- set buttons to clickable
@@ -166,7 +182,7 @@ local function draw_turn_indicator()
     -- Draw the turn indicator at the top of the screen
     local x = love.graphics.getWidth() * 0.5
     local y = love.graphics.getHeight() * 0.05
-    local text = (game.turn == "player") and "Player's Turn" or "Enemy's Turn"
+    local text = (game.turn == Actors.PLAYER) and "Player's Turn" or "Enemy's Turn"
     love.graphics.setColor(1, 1, 1) -- white for text
     love.graphics.printf(text, x - 50, y, 100, "center")
 end
@@ -270,25 +286,24 @@ end
 
 local do_enemy_turn -- forward declaration for enemy turn logic
 
--- direction is just "player" or "enemy" and bullet is the object
+-- direction is just Actors.PLAYER or Actors.ENEMY and bullet is the object
 local function handle_shooting_generic(direction, bullet)
     bullet.used = true
-
+    print("user:", game.turn, "going to:", direction, "bullet:", bullet.type)
     -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
     -- and up/down
     local target_x = (love.graphics.getWidth() * 0.5 + math.random(-50, 50))
-    local target_y = (direction == "player") and (love.graphics.getHeight() * 0.9) or (love.graphics.getHeight() * 0.1 + math.random(-50, 50))
-    print("Tweening bullet to target:", target_x, target_y)
+    local target_y = (direction == Actors.PLAYER) and (love.graphics.getHeight() * 0.9) or (love.graphics.getHeight() * 0.1 + math.random(-50, 50))
     local tween_duration = 0.2 -- duration of the tween in seconds
     Timer.tween(tween_duration, bullet.pos, {x = target_x, y = target_y}, 'in-linear', function()
         -- Callback after tweening is done, you can add any additional logic here
         bullet.used = true -- mark the bullet as used
         game.gun.current_round = game.gun.current_round + 1
         
-        if bullet.type == "bullet" then
-            if direction == "player" then
+        if bullet.type == BulletTypes.LIVE then
+            if direction == Actors.PLAYER then
                 game.player.health = math.max(0, game.player.health - bullet.dmg)
-            elseif direction == "enemy" then
+            elseif direction == Actors.ENEMY then
                 game.enemy.health = math.max(0, game.enemy.health - bullet.dmg)
             end
         end
@@ -301,19 +316,19 @@ local function handle_shooting_generic(direction, bullet)
         end
 
         -- if turn and direction are the same, the actor gets to shoot again
-        if game.turn == direction and bullet.type == "blank" then
+        if game.turn == direction and bullet.type == BulletTypes.BLANK then
             -- no op. but we enable the buttons again for the player to shoot again if it's their turn
-            if game.turn == "player" then
+            if game.turn == Actors.PLAYER then
                 game.buttons.shoot.disabled = false
                 game.buttons.pass.disabled = false
             end
         else
-            -- we know that an actor shot the other actor, so we switch turns no matter what
-            if game.turn == "player" and game.player.health > 0 and game.enemy.health > 0 then
-                game.turn = "enemy"
+            -- we know that an actor shot the other actor, so we switch Actors no matter what
+            if game.turn == Actors.PLAYER and game.player.health > 0 and game.enemy.health > 0 then
+                game.turn = Actors.ENEMY
                 do_enemy_turn() -- handle enemy's turn logic
             else
-                game.turn = "player"
+                game.turn = Actors.PLAYER
                 game.buttons.shoot.disabled = false
                 game.buttons.pass.disabled = false
             end
@@ -327,7 +342,7 @@ do_enemy_turn = function()    -- Handle enemy's turn logic here
     -- For simplicity, let's say the enemy always shoots
     local current_round = game.gun.rounds[game.gun.current_round]
     print("Enemy's turn, current round type:", current_round.type)
-    handle_shooting_generic("player", current_round)
+    handle_shooting_generic(Actors.PLAYER, current_round)
 end
 
 local function button_shoot_action()
@@ -339,7 +354,7 @@ local function button_shoot_action()
         print("Current round idx:", game.gun.current_round)
         print("Current round type:", current_round.type)
         -- always towards enemy since shoot
-        handle_shooting_generic("enemy", current_round)
+        handle_shooting_generic(Actors.ENEMY, current_round)
     end
 end
 
@@ -352,7 +367,7 @@ local function button_pass_action()
         game.buttons.shoot.disabled = true
         game.buttons.pass.disabled = true
         local current_round = game.gun.rounds[game.gun.current_round]
-        handle_shooting_generic("player", current_round)
+        handle_shooting_generic(Actors.PLAYER, current_round)
     end
 end
 
