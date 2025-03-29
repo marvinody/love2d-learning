@@ -35,6 +35,7 @@ local game = {
             hovered = false,
             disabled = true,
             pressed = false,
+            draw = true,
             color = {0, 1, 0},
         },
         pass = {
@@ -46,10 +47,48 @@ local game = {
             hovered = false,
             disabled = true,
             pressed = false,
+            draw = true,
             color = {0.5, 0.5, 1},
+        },
+        game_over_restart = {
+            x = 0.5, -- center of the screen
+            y = 0.5, -- center of the screen
+            w = 0.2, -- width of button
+            h = 0.1, -- height of button
+            text = "Restart",
+            hovered = false,
+            disabled = false,
+            pressed = false,
+            draw = false, -- initially hidden
+            color = {1, 0, 0},
+        },
+        game_over_quit = {
+            x = 0.5, -- center of the screen
+            y = 0.6, -- center of the screen
+            w = 0.2, -- width of button
+            h = 0.1, -- height of button
+            text = "Quit",
+            hovered = false,
+            disabled = false,
+            pressed = false,
+            draw = false, -- initially hidden
+            color = {1, 0, 0},
         },
     }
 }
+
+local function initial_game_state()
+    -- Initialize the game state here
+    game.player.health = game.player.max_health
+    game.enemy.health = game.enemy.max_health
+    game.gun.current_round = 1
+    game.gun.rounds = {}
+    game.turn = "player" -- Start with player's turn
+    game.buttons.shoot.disabled = true
+    game.buttons.pass.disabled = true
+    game.buttons.game_over_restart.draw = false
+    game.buttons.game_over_quit.draw = false
+end
 
 local function generate_gun_rounds()
     -- pick random number for total number of rounds in shotgun
@@ -77,6 +116,50 @@ local function generate_gun_rounds()
     -- set buttons to clickable
     game.buttons.shoot.disabled = false
     game.buttons.pass.disabled = false
+
+    print("Gun rounds generated:")
+    for i, round in ipairs(game.gun.rounds) do
+        print(i, round.type)
+    end
+end
+
+local function handle_reload()
+    -- at the end of all bullets, we reload the gun
+    -- reset the rounds and current round
+    game.gun.current_round = 1
+    game.gun.rounds = {}
+    game.gun.total_rounds = 0
+    game.buttons.shoot.disabled = true
+    game.buttons.pass.disabled = true
+    generate_gun_rounds() -- Generate new rounds
+end
+
+local function handle_game_over()
+    -- Check if either player or enemy is dead
+  
+    -- Show restart and quit buttons
+    game.buttons.game_over_restart.draw = true
+    game.buttons.game_over_quit.draw = true
+    game.buttons.shoot.disabled = true
+    game.buttons.pass.disabled = true
+end
+
+local function draw_game_over_text()
+    local text = ""
+    if game.player.health <= 0 then
+        text = "You lose! Try again?"
+    elseif game.enemy.health <= 0 then
+        text = "You win! Play again?"
+    end
+    if text == "" then return end -- No game over text to draw
+
+    -- Draw the game over text if applicable
+    if game.buttons.game_over_restart.draw then
+        local x = love.graphics.getWidth() * 0.5 - 100
+        local y = love.graphics.getHeight() * 0.3 - 50
+        love.graphics.setColor(1, 1, 1) -- white for text
+        love.graphics.printf(text, x, y, 200, "center")
+    end
 end
 
 local function draw_turn_indicator()
@@ -128,6 +211,9 @@ local function draw_buttons()
         local x = love.graphics.getWidth() * button.x - (button.w * love.graphics.getWidth()) / 2
         local y = love.graphics.getHeight() * button.y - (button.h * love.graphics.getHeight()) / 2
         local button_color
+        if not button.draw then
+            goto continue
+        end
         if button.disabled then
             button_color = {0.5, 0.5, 0.5}
         elseif button.pressed then
@@ -142,6 +228,7 @@ local function draw_buttons()
         love.graphics.rectangle("fill", x, y, button.w * love.graphics.getWidth(), button.h * love.graphics.getHeight())
         love.graphics.setColor(0, 0, 0) -- black for text
         love.graphics.printf(button.text, x, y + (button.h * love.graphics.getHeight() - 20) / 2, button.w * love.graphics.getWidth(), "center")
+        ::continue::
     end
 end
 
@@ -187,7 +274,6 @@ local do_enemy_turn -- forward declaration for enemy turn logic
 local function handle_shooting_generic(direction, bullet)
     bullet.used = true
 
-
     -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
     -- and up/down
     local target_x = (love.graphics.getWidth() * 0.5 + math.random(-50, 50))
@@ -197,7 +283,7 @@ local function handle_shooting_generic(direction, bullet)
     Timer.tween(tween_duration, bullet.pos, {x = target_x, y = target_y}, 'in-linear', function()
         -- Callback after tweening is done, you can add any additional logic here
         bullet.used = true -- mark the bullet as used
-        game.gun.current_round = math.min(game.gun.current_round + 1, game.gun.total_rounds)
+        game.gun.current_round = game.gun.current_round + 1
         
         if bullet.type == "bullet" then
             if direction == "player" then
@@ -205,6 +291,13 @@ local function handle_shooting_generic(direction, bullet)
             elseif direction == "enemy" then
                 game.enemy.health = math.max(0, game.enemy.health - bullet.dmg)
             end
+        end
+
+        if game.player.health <= 0 or game.enemy.health <= 0 then
+            handle_game_over() -- Check for game over condition
+            return
+        elseif game.gun.current_round > game.gun.total_rounds then
+            handle_reload() -- Reload the gun if all rounds are used
         end
 
         -- if turn and direction are the same, the actor gets to shoot again
@@ -216,7 +309,7 @@ local function handle_shooting_generic(direction, bullet)
             end
         else
             -- we know that an actor shot the other actor, so we switch turns no matter what
-            if game.turn == "player" then
+            if game.turn == "player" and game.player.health > 0 and game.enemy.health > 0 then
                 game.turn = "enemy"
                 do_enemy_turn() -- handle enemy's turn logic
             else
@@ -231,7 +324,7 @@ local function handle_shooting_generic(direction, bullet)
 end
 
 do_enemy_turn = function()    -- Handle enemy's turn logic here
-    -- For simplicity, let's say the enemy always shoors
+    -- For simplicity, let's say the enemy always shoots
     local current_round = game.gun.rounds[game.gun.current_round]
     print("Enemy's turn, current round type:", current_round.type)
     handle_shooting_generic("player", current_round)
@@ -277,6 +370,18 @@ local function handle_mousereleased_buttons(mx, my, button)
             button_pass_action()
             game.buttons.pass.pressed = false -- Reset pressed state after action
         end
+        -- Check if the game over restart button was pressed
+        if game.buttons.game_over_restart.draw and game.buttons.game_over_restart.pressed then
+            print("Restart button pressed")
+            game.load() -- Restart the game
+        end
+
+        -- Check if the game over quit button was pressed
+        if game.buttons.game_over_quit.draw and game.buttons.game_over_quit.pressed then
+            print("Quit button pressed")
+            state = states.menu -- Go back to the menu state
+            state.load()
+        end
     end
 end
 
@@ -284,11 +389,9 @@ end
 game.load = function()
     math.randomseed(os.time())
     -- Load any resources needed for the game here
+    initial_game_state()
     generate_gun_rounds()
-    print("Gun rounds generated:")
-    for i, round in ipairs(game.gun.rounds) do
-        print(i, round.type)
-    end
+
 end
 
 game.update = function(dt)
@@ -302,7 +405,7 @@ game.draw = function()
     draw_turn_indicator()
     draw_health_bar(0.5, 0.9, game.player.health, game.player.max_health)
     draw_health_bar(0.5, 0.1, game.enemy.health, game.enemy.max_health)
-    
+    draw_game_over_text()
 end
 
 game.mousepressed = function(x, y, button, istouch, presses)
