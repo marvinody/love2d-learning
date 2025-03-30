@@ -99,20 +99,33 @@ end
 
 local function assign_default_xy_to_rounds(total_rounds)
     -- find middle position and offset the rounds so they are centered
-    local total_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing) * total_rounds
+    local total_sprite_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling) * total_rounds
+    local total_spacing = game.gun.draw_vars.xSpacing * (total_rounds - 1)
+    local total_width = total_sprite_width + total_spacing
+    
     local offset = (love.graphics.getWidth() - total_width) / 2
     for i, round in ipairs(game.gun.rounds) do
         local x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing)
         local y = love.graphics.getHeight() * game.gun.draw_vars.yStart
-        round.pos.x = offset + x
+        round.pos.x = offset + x + game.gun.draw_vars.radius * game.gun.draw_vars.scaling
         round.pos.y = y
         round.pos.default_x = round.pos.x
         round.pos.default_y = round.pos.y
     end
 end
 
+local function shuffle_gun_rounds()
+    -- shuffle the rounds
+    for i = #game.gun.rounds, 2, -1 do
+        local j = math.random(i)
+        game.gun.rounds[i], game.gun.rounds[j] = game.gun.rounds[j], game.gun.rounds[i]
+    end
+    assign_default_xy_to_rounds(#game.gun.rounds)
 
-local function generate_gun_rounds()
+end
+
+
+local function generate_gun_rounds(done)
     game.gun.rounds = {} -- reset rounds
      -- pick a random number of live rounds between 1 and 4
     local live_rounds = math.random(1, 4)
@@ -147,16 +160,13 @@ local function generate_gun_rounds()
         table.insert(game.gun.rounds, round)
     end
 
-    -- shuffle the rounds
-    for i = #game.gun.rounds, 2, -1 do
-        local j = math.random(i)
-        game.gun.rounds[i], game.gun.rounds[j] = game.gun.rounds[j], game.gun.rounds[i]
-    end
-
-    -- assign positions to the rounds
-    assign_default_xy_to_rounds(total_rounds)
+    -- make it look more organic to player
+    shuffle_gun_rounds()
 
     local function activate_play()
+        -- hide the actual order by shuffling the rounds again
+        shuffle_gun_rounds()
+
         game.gun.total_rounds = total_rounds
         game.gun.current_round = 1 -- reset current round
     
@@ -164,6 +174,8 @@ local function generate_gun_rounds()
         -- set buttons to clickable
         game.buttons.shoot.disabled = false
         game.buttons.pass.disabled = false
+
+        if done then done() end -- Call the done function if provided
     end
 
 
@@ -187,18 +199,13 @@ local function generate_gun_rounds()
     -- show them for 2 seconds
     Timer.after(2, collapse_rounds)
 
-
-
-
-
-
     print("Gun rounds generated:")
     for i, round in ipairs(game.gun.rounds) do
         print(i, round.type)
     end
 end
 
-local function handle_reload()
+local function handle_reload(done)
     -- at the end of all bullets, we reload the gun
     -- reset the rounds and current round
     game.gun.current_round = 1
@@ -206,7 +213,7 @@ local function handle_reload()
     game.gun.total_rounds = 0
     game.buttons.shoot.disabled = true
     game.buttons.pass.disabled = true
-    generate_gun_rounds() -- Generate new rounds
+    generate_gun_rounds(done) -- Generate new rounds
 end
 
 local function handle_game_over()
@@ -284,7 +291,7 @@ local function draw_gun_rounds()
         local sprite_width = 32 * scaling -- assuming the sprite width is 32
         local sprite_height = 32 * scaling -- assuming the sprite height is 32
         -- Adjust the position by subtracting the radius
-        -- love.graphics.rectangle("line", round.pos.x - 32 , round.pos.y - 32, sprite_width, sprite_height)
+        love.graphics.rectangle("line", round.pos.x - 32 , round.pos.y - 32, sprite_width, sprite_height)
         love.graphics.setColor(1, 1, 1) -- Reset color to white
     end
 end
@@ -392,33 +399,37 @@ local function handle_shooting_generic(direction, bullet)
             end
         end
 
+        local function handle_end_of_turn()
+            -- if turn and direction are the same, the actor gets to shoot again
+            if game.turn == direction and bullet.type == BulletTypes.BLANK then
+                -- no op. but we enable the buttons again for the player to shoot again if it's their turn
+                if game.turn == Actors.PLAYER then
+                    game.buttons.shoot.disabled = false
+                    game.buttons.pass.disabled = false
+                end
+            else
+                -- we know that an actor shot the other actor, so we switch Actors no matter what
+                if game.turn == Actors.PLAYER and game.player.health > 0 and game.enemy.health > 0 then
+                    game.turn = Actors.ENEMY
+                    do_enemy_turn() -- handle enemy's turn logic
+                else
+                    game.turn = Actors.PLAYER
+                    game.buttons.shoot.disabled = false
+                    game.buttons.pass.disabled = false
+                end
+            end
+        end
+
         if game.player.health <= 0 or game.enemy.health <= 0 then
             handle_game_over() -- Check for game over condition
             return
         elseif game.gun.current_round > game.gun.total_rounds then
-            handle_reload() -- Reload the gun if all rounds are used
-        end
-
-        -- if turn and direction are the same, the actor gets to shoot again
-        if game.turn == direction and bullet.type == BulletTypes.BLANK then
-            -- no op. but we enable the buttons again for the player to shoot again if it's their turn
-            if game.turn == Actors.PLAYER then
-                game.buttons.shoot.disabled = false
-                game.buttons.pass.disabled = false
-            end
+            handle_reload(handle_end_of_turn) -- Reload the gun if all rounds are used
         else
-            -- we know that an actor shot the other actor, so we switch Actors no matter what
-            if game.turn == Actors.PLAYER and game.player.health > 0 and game.enemy.health > 0 then
-                game.turn = Actors.ENEMY
-                do_enemy_turn() -- handle enemy's turn logic
-            else
-                game.turn = Actors.PLAYER
-                game.buttons.shoot.disabled = false
-                game.buttons.pass.disabled = false
-            end
+            handle_end_of_turn() -- Handle end of turn logic
         end
 
-        
+
     end)
 end
 
