@@ -10,6 +10,13 @@ state = states.menu
 
 
 function love.load ()
+	love.window.setMode(960, 540, {
+        fullscreen = false,  -- Set to true for fullscreen
+        resizable = false,   -- Disable resizing to maintain aspect ratio
+        vsync = true,        -- Enable vertical sync
+        minwidth = 960,      -- Minimum width (optional)
+        minheight = 540      -- Minimum height (optional)
+    })
 	state.load ()
 end
 

@@ -97,6 +97,21 @@ local function initial_game_state()
     game.buttons.game_over_quit.draw = false
 end
 
+local function assign_default_xy_to_rounds(total_rounds)
+    -- find middle position and offset the rounds so they are centered
+    local total_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing) * total_rounds
+    local offset = (love.graphics.getWidth() - total_width) / 2
+    for i, round in ipairs(game.gun.rounds) do
+        local x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing)
+        local y = love.graphics.getHeight() * game.gun.draw_vars.yStart
+        round.pos.x = offset + x
+        round.pos.y = y
+        round.pos.default_x = round.pos.x
+        round.pos.default_y = round.pos.y
+    end
+end
+
+
 local function generate_gun_rounds()
     game.gun.rounds = {} -- reset rounds
      -- pick a random number of live rounds between 1 and 4
@@ -111,9 +126,12 @@ local function generate_gun_rounds()
             direction = "",
             dmg = 1,
             pos = {
-                x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing),
-                y = love.graphics.getHeight() * game.gun.draw_vars.yStart,
+                x = 0,
+                y = 0,
+                default_x = 0,
+                default_y = 0,
             }, -- initial position
+            show_type = true,
         }
     end
 
@@ -129,20 +147,50 @@ local function generate_gun_rounds()
         table.insert(game.gun.rounds, round)
     end
 
-    -- find middle position and offset the rounds so they are centered
-    local total_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing) * total_rounds
-    local offset = (love.graphics.getWidth() - total_width) / 2
-    for i, round in ipairs(game.gun.rounds) do
-        round.pos.x = offset + round.pos.x
+    -- shuffle the rounds
+    for i = #game.gun.rounds, 2, -1 do
+        local j = math.random(i)
+        game.gun.rounds[i], game.gun.rounds[j] = game.gun.rounds[j], game.gun.rounds[i]
     end
 
-    game.gun.total_rounds = total_rounds
-    game.gun.current_round = 1 -- reset current round
+    -- assign positions to the rounds
+    assign_default_xy_to_rounds(total_rounds)
 
-    -- TODO shuffle the rounds to randomize their order
-    -- set buttons to clickable
-    game.buttons.shoot.disabled = false
-    game.buttons.pass.disabled = false
+    local function activate_play()
+        game.gun.total_rounds = total_rounds
+        game.gun.current_round = 1 -- reset current round
+    
+        -- TODO shuffle the rounds to randomize their order
+        -- set buttons to clickable
+        game.buttons.shoot.disabled = false
+        game.buttons.pass.disabled = false
+    end
+
+
+    local function expand_rounds()
+        for i, round in ipairs(game.gun.rounds) do
+            round.show_type = false
+            Timer.tween(0.2, round.pos, {x = round.pos.default_x, y = round.pos.default_y}, 'in-out-cubic')
+        end
+        Timer.after(0.2, activate_play)
+    end
+
+    local function collapse_rounds()
+        local middle_x = love.graphics.getWidth() * 0.5
+       
+        for i, round in ipairs(game.gun.rounds) do
+            Timer.tween(0.2, round.pos, {x = middle_x}, 'in-out-cubic')
+        end
+        Timer.after(0.2, expand_rounds) 
+    end
+
+    -- show them for 2 seconds
+    Timer.after(2, collapse_rounds)
+
+
+
+
+
 
     print("Gun rounds generated:")
     for i, round in ipairs(game.gun.rounds) do
@@ -198,6 +246,22 @@ local function draw_turn_indicator()
     love.graphics.printf(text, x - 50, y, 100, "center")
 end
 
+local function draw_debug_grid()
+    -- Draw a grid for debugging purposes
+    local grid_count = 20 -- Number of grid cells along the Y-axis
+    local screen_height = love.graphics.getHeight()
+    local screen_width = love.graphics.getWidth()
+    local grid_size = screen_height / grid_count -- Calculate grid size to make squares
+
+    love.graphics.setColor(0.5, 0.5, 0.5) -- gray for grid lines
+    for x = 0, screen_width, grid_size do
+        love.graphics.line(x, 0, x, screen_height)
+    end
+    for y = 0, screen_height, grid_size do
+        love.graphics.line(0, y, screen_width, y)
+    end
+end
+
 local function draw_gun_rounds()
     -- for current -> total rounds, draw the gun rounds
     -- blanks are blue, bullets are red
@@ -207,9 +271,20 @@ local function draw_gun_rounds()
             color = ColorUtil.adjustLightness(color, -0.5) -- darken color if used
         end
         love.graphics.setColor(color)
-        local quad = game.images[round.type]
+        local type_quad = game.images[round.type]
+        local hidden_quad = game.images[BulletTypes.UNKNOWN]
+        local quad = (round.used or round.show_type) and type_quad or hidden_quad
         local scaling = game.gun.draw_vars.scaling
-        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling)
+        local radius = game.gun.draw_vars.radius
+
+        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling, nil, radius, radius)
+        
+        -- Draw a rectangle around the sprite to visualize borders
+        love.graphics.setColor(1, 0, 0) -- red for the border
+        local sprite_width = 32 * scaling -- assuming the sprite width is 32
+        local sprite_height = 32 * scaling -- assuming the sprite height is 32
+        -- Adjust the position by subtracting the radius
+        -- love.graphics.rectangle("line", round.pos.x - 32 , round.pos.y - 32, sprite_width, sprite_height)
         love.graphics.setColor(1, 1, 1) -- Reset color to white
     end
 end
@@ -437,6 +512,7 @@ game.update = function(dt)
 end
 
 game.draw = function()
+    -- draw_debug_grid()
     draw_gun_rounds()
     draw_buttons()
     draw_turn_indicator()
