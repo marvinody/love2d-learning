@@ -1,5 +1,6 @@
 
 Timer = require "lib/hump/timer"
+Items = require "items"
 ColorUtil = require "colorutil"
 Enums = require "enums"
 
@@ -7,7 +8,9 @@ local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
 
 local game = {
     player = {
-        items = {},
+        items = {
+            Items.HeartItem,
+        },
         health = 2,
         max_health = 4,
     },
@@ -31,8 +34,8 @@ local game = {
     turn = Actors.PLAYER, -- Actors.PLAYER or Actors.ENEMY
     buttons = {
         shoot = {
-            x = 0.4, -- left side of the screen
-            y = 0.8, -- towards the bottom of the screen
+            x = 0.1, -- left side of the screen
+            y = 0.75, -- towards the bottom of the screen
             w = 0.1, -- width of button
             h = 0.1, -- height of button
             text = "Shoot",
@@ -43,8 +46,8 @@ local game = {
             color = {0, 1, 0},
         },
         pass = {
-            x = 0.6, -- right side of the screen
-            y = 0.8, -- towards the bottom of the screen
+            x = 0.21, -- right side of the screen
+            y = 0.75, -- towards the bottom of the screen
             w = 0.1, -- width of button
             h = 0.1, -- height of button
             text = "Pass",
@@ -271,7 +274,8 @@ end
 
 local function draw_gun_rounds()
     -- for current -> total rounds, draw the gun rounds
-    -- blanks are blue, bullets are red
+    local live_rounds = 0
+    local blank_rounds = 0
     for i, round in ipairs(game.gun.rounds) do
         local color = {1, 1, 1}
         if round.used then
@@ -300,14 +304,16 @@ end
 local function draw_health_bar(xP, yP, health, max_health)
     local x = love.graphics.getWidth() * xP
     local y = love.graphics.getHeight() * yP
-    local bar_width = 100
-    local bar_height = 10
+    local heart_size = 32
+    local heart_scaling = 2
     -- for each health point, draw a segment of the bar
     for i = 1, max_health do
-        local segment_x = x + (i - 1) * (bar_width / max_health)
-        local color = i <= health and {0, 1, 0} or {1, 0, 0}
-        love.graphics.setColor(color)
-        love.graphics.rectangle("fill", segment_x, y, bar_width / max_health - 2, bar_height)
+        local segment_x = x + (i - 1) * (heart_size * heart_scaling) -- calculate x position for each heart
+        local sprite = i <= health and game.images.heart_filled or game.images.heart_empty
+        love.graphics.setColor(1, 1, 1) -- white for heart
+        love.graphics.draw(sprite, segment_x, y, 0, heart_scaling, heart_scaling, heart_size / 2, heart_size / 2)
+
+
     end
     love.graphics.setColor(1, 1, 1) -- Reset color to white
 end
@@ -339,6 +345,43 @@ local function draw_buttons()
     end
 end
 
+local function draw_item_bounds()
+    local MaxItems, BorderColor = Items.constants.MAX_ITEMS, Items.constants.ITEM_BORDER_COLOR
+    local function draw_item_bounds_generic(x, y, items)
+        -- draw a grid around the item box for user to see where items go
+        local bounds = Items.get_item_bounds(x, y)
+        for i = 1, MaxItems do
+            local bounds = bounds[i]
+            local item_x, item_y = bounds.x, bounds.y
+            local ItemWidth, ItemHeight = bounds.width, bounds.height
+            local item = items[i]
+            -- Draw the rectangle for the item box
+            love.graphics.setColor(BorderColor[1], BorderColor[2], BorderColor[3]) -- Use the constants defined in items.lua
+            love.graphics.rectangle("line", item_x, item_y, ItemWidth, ItemHeight)
+            if item then
+                if item.hovered then
+                    love.graphics.setColor(0.7, 0.7, 0.7) -- light gray for hovered item
+                elseif item.pressed then
+                    love.graphics.setColor(0.9, 0.9, 0.9) -- dark gray for pressed item
+                elseif item.released then
+                    love.graphics.setColor(1, 1, 1) -- white for normal item
+                else
+                    love.graphics.setColor(0.6, 0.6, 0.6) -- white for normal item
+                end
+            
+                local scaling = 8/3 -- scale the sprite for visibility
+                local sprite = item.is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
+                love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
+            end
+        end
+    end
+
+    -- Draw item bounds for player and enemy items
+    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85, game.player.items) -- Player items (bottom left)
+    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.1, game.enemy.items) -- Enemy items (top left)
+end
+
+
 local function handle_button_generic(mx, my, inFn, outFn)
     -- Check if the mouse is over any of the buttons and call the appropriate function
     for _, button in pairs(game.buttons) do
@@ -348,6 +391,20 @@ local function handle_button_generic(mx, my, inFn, outFn)
             if inFn then inFn(button) end -- Call the in function if provided
         else
             if outFn then outFn(button) end -- Call the out function if provided
+        end
+    end
+end
+
+local function handle_item_generic(mx, my, inFn, outFn)
+    -- Check if the mouse is over any of the items and call the appropriate function
+    for i, item in ipairs(game.player.items) do
+        local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[i]
+        local x = bounds.x
+        local y = bounds.y
+        if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then
+            if inFn then inFn(item) end -- Call the in function if provided
+        else
+            if outFn then outFn(item) end -- Call the out function if provided
         end
     end
 end
@@ -362,6 +419,15 @@ local function handle_mousemove_buttons(mx, my)
             button.pressed = false -- Reset pressed state if the mouse is dragged out
         end
     )
+    handle_item_generic(mx, my, 
+        function(item)
+            item.hovered = true
+        end, 
+        function(item)
+            item.hovered = false
+            item.pressed = false -- Reset pressed state if the mouse is dragged out
+        end
+    )
 end
 
 -- Handle mouse press on buttons using the handle_button_generic function
@@ -370,6 +436,13 @@ local function handle_mousepressed_buttons(mx, my, button)
         handle_button_generic(mx, my, 
             function(btn)
                 btn.pressed = true -- Set pressed state to true
+            end
+        )
+
+        handle_item_generic(mx, my, 
+            function(item)
+                print("Item pressed:", item.name)
+                item.pressed = true -- Set pressed state to true
             end
         )
     end
@@ -501,7 +574,8 @@ local function load_images()
     game.images[BulletTypes.UNKNOWN] = love.graphics.newQuad(0, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
     game.images[BulletTypes.LIVE] = love.graphics.newQuad(32, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
     game.images[BulletTypes.BLANK] = love.graphics.newQuad(64, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
-
+    game.images.heart_filled = love.graphics.newImage("assets/sprites/heart_filled.png")
+    game.images.heart_empty = love.graphics.newImage("assets/sprites/heart_empty.png")
 
 end
 
@@ -524,11 +598,14 @@ end
 
 game.draw = function()
     -- draw_debug_grid()
+    -- draw background, sliightly grey
+    love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
     draw_gun_rounds()
+    draw_item_bounds()
     draw_buttons()
     draw_turn_indicator()
-    draw_health_bar(0.5, 0.9, game.player.health, game.player.max_health)
-    draw_health_bar(0.5, 0.1, game.enemy.health, game.enemy.max_health)
+    draw_health_bar(0.05, 0.9, game.player.health, game.player.max_health)
+    draw_health_bar(0.05, 0.1, game.enemy.health, game.enemy.max_health)
     draw_game_over_text()
 end
 
