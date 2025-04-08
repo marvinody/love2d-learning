@@ -25,7 +25,6 @@ local function NewItem (name, type, description, is_enabled_fn, middleware)
         },
         hovered = false,
         pressed = false,
-        released = false,
         is_enabled_fn = is_enabled_fn or function() return true end, -- default to always enabled
         middleware = middleware or function() end, -- optional middleware function for additional logic when using the item
         activate = function(self, game_state)
@@ -42,6 +41,7 @@ local function NewItem (name, type, description, is_enabled_fn, middleware)
                 
                 return true -- Indicate success
             else
+                print("Item is not enabled.")
                 return false -- Indicate failure (not enabled)
             end
         end,
@@ -79,7 +79,7 @@ local HeartItem = NewItem(
         return game_state.player.health < game_state.player.max_health -- Only enable if health is below max
     end,
     function(game_state)
-        game_state.health = math.min(game_state.health + 1, game_state.max_health) -- Restore 1 heart
+        game_state.player.health = math.min(game_state.player.health + 1, game_state.player.max_health) -- Restore 1 heart
     end
 )
 

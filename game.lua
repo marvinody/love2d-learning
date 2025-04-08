@@ -441,7 +441,6 @@ local function handle_mousepressed_buttons(mx, my, button)
 
         handle_item_generic(mx, my, 
             function(item)
-                print("Item pressed:", item.name)
                 item.pressed = true -- Set pressed state to true
             end
         )
@@ -565,6 +564,13 @@ local function handle_mousereleased_buttons(mx, my, button)
             state = states.menu -- Go back to the menu state
             state.load()
         end
+
+        handle_item_generic(mx, my, 
+            function(item)
+                item:activate(game)
+                item.pressed = false -- Reset pressed state after action
+            end
+        )
     end
 end
 
