@@ -3,13 +3,14 @@ Timer = require "lib/hump/timer"
 Items = require "items"
 ColorUtil = require "colorutil"
 Enums = require "enums"
+Text = require "text"
 
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
 
 local game = {
     player = {
         items = {
-            Items.HeartItem,
+            Items.HeartItem(),
         },
         health = 2,
         max_health = 4,
@@ -345,7 +346,7 @@ local function draw_buttons()
     end
 end
 
-local function draw_item_bounds()
+local function draw_items()
     local MaxItems, BorderColor = Items.constants.MAX_ITEMS, Items.constants.ITEM_BORDER_COLOR
     local function draw_item_bounds_generic(x, y, items)
         -- draw a grid around the item box for user to see where items go
@@ -368,10 +369,14 @@ local function draw_item_bounds()
                 else
                     love.graphics.setColor(0.6, 0.6, 0.6) -- white for normal item
                 end
-            
+
                 local scaling = 8/3 -- scale the sprite for visibility
                 local sprite = item.is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
                 love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
+
+                if item.hovered or item.pressed then
+                    item:draw_text_box()
+                end
             end
         end
     end
@@ -607,11 +612,12 @@ game.draw = function()
     -- draw background, sliightly grey
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
     draw_gun_rounds()
-    draw_item_bounds()
+    
     draw_buttons()
     draw_turn_indicator()
     draw_health_bar(0.05, 0.9, game.player.health, game.player.max_health)
     draw_health_bar(0.05, 0.1, game.enemy.health, game.enemy.max_health)
+    draw_items()
     draw_game_over_text()
 end
 
