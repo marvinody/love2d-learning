@@ -14,7 +14,7 @@ local BulletTypes = {
 }
 
 local ItemTypes = {
-    HEAL_ONE = "HEAL_ONE", -- Heals 1 HP
+    HEAL_ONE = "HEAL_ONE",     -- Heals 1 HP
     DOUBLE_DMG = "DOUBLE_DMG", -- Doubles damage for the next attack
 }
 

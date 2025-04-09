@@ -1,4 +1,3 @@
-
 Timer = require "lib/hump/timer"
 Items = require "items"
 ColorUtil = require "colorutil"
@@ -35,28 +34,28 @@ local game = {
     turn = Actors.PLAYER, -- Actors.PLAYER or Actors.ENEMY
     buttons = {
         shoot = {
-            x = 0.1, -- left side of the screen
+            x = 0.1,  -- left side of the screen
             y = 0.75, -- towards the bottom of the screen
-            w = 0.1, -- width of button
-            h = 0.1, -- height of button
+            w = 0.1,  -- width of button
+            h = 0.1,  -- height of button
             text = "Shoot",
             hovered = false,
             disabled = true,
             pressed = false,
             draw = true,
-            color = {0, 1, 0},
+            color = { 0, 1, 0 },
         },
         pass = {
             x = 0.21, -- right side of the screen
             y = 0.75, -- towards the bottom of the screen
-            w = 0.1, -- width of button
-            h = 0.1, -- height of button
+            w = 0.1,  -- width of button
+            h = 0.1,  -- height of button
             text = "Pass",
             hovered = false,
             disabled = true,
             pressed = false,
             draw = true,
-            color = {0.5, 0.5, 1},
+            color = { 0.5, 0.5, 1 },
         },
         game_over_restart = {
             x = 0.5, -- center of the screen
@@ -68,7 +67,7 @@ local game = {
             disabled = false,
             pressed = false,
             draw = false, -- initially hidden
-            color = {1, 0, 0},
+            color = { 1, 0, 0 },
         },
         game_over_quit = {
             x = 0.5, -- center of the screen
@@ -80,7 +79,7 @@ local game = {
             disabled = false,
             pressed = false,
             draw = false, -- initially hidden
-            color = {1, 0, 0},
+            color = { 1, 0, 0 },
         },
     },
     images = {
@@ -106,7 +105,7 @@ local function assign_default_xy_to_rounds(total_rounds)
     local total_sprite_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling) * total_rounds
     local total_spacing = game.gun.draw_vars.xSpacing * (total_rounds - 1)
     local total_width = total_sprite_width + total_spacing
-    
+
     local offset = (love.graphics.getWidth() - total_width) / 2
     for i, round in ipairs(game.gun.rounds) do
         local x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing)
@@ -125,13 +124,12 @@ local function shuffle_gun_rounds()
         game.gun.rounds[i], game.gun.rounds[j] = game.gun.rounds[j], game.gun.rounds[i]
     end
     assign_default_xy_to_rounds(#game.gun.rounds)
-
 end
 
 
 local function generate_gun_rounds(done)
     game.gun.rounds = {} -- reset rounds
-     -- pick a random number of live rounds between 1 and 4
+    -- pick a random number of live rounds between 1 and 4
     local live_rounds = math.random(1, 4)
     local blank_rounds = math.random(1, 4)
     local total_rounds = live_rounds + blank_rounds
@@ -173,7 +171,7 @@ local function generate_gun_rounds(done)
 
         game.gun.total_rounds = total_rounds
         game.gun.current_round = 1 -- reset current round
-    
+
         -- TODO shuffle the rounds to randomize their order
         -- set buttons to clickable
         game.buttons.shoot.disabled = false
@@ -186,18 +184,18 @@ local function generate_gun_rounds(done)
     local function expand_rounds()
         for i, round in ipairs(game.gun.rounds) do
             round.show_type = false
-            Timer.tween(0.2, round.pos, {x = round.pos.default_x, y = round.pos.default_y}, 'in-out-cubic')
+            Timer.tween(0.2, round.pos, { x = round.pos.default_x, y = round.pos.default_y }, 'in-out-cubic')
         end
         Timer.after(0.2, activate_play)
     end
 
     local function collapse_rounds()
         local middle_x = love.graphics.getWidth() * 0.5
-       
+
         for i, round in ipairs(game.gun.rounds) do
-            Timer.tween(0.2, round.pos, {x = middle_x}, 'in-out-cubic')
+            Timer.tween(0.2, round.pos, { x = middle_x }, 'in-out-cubic')
         end
-        Timer.after(0.2, expand_rounds) 
+        Timer.after(0.2, expand_rounds)
     end
 
     -- show them for 2 seconds
@@ -222,7 +220,7 @@ end
 
 local function handle_game_over()
     -- Check if either player or enemy is dead
-  
+
     -- Show restart and quit buttons
     game.buttons.game_over_restart.draw = true
     game.buttons.game_over_quit.draw = true
@@ -264,7 +262,7 @@ local function draw_debug_grid()
     local screen_width = love.graphics.getWidth()
     local grid_size = screen_height / grid_count -- Calculate grid size to make squares
 
-    love.graphics.setColor(0.5, 0.5, 0.5) -- gray for grid lines
+    love.graphics.setColor(0.5, 0.5, 0.5)        -- gray for grid lines
     for x = 0, screen_width, grid_size do
         love.graphics.line(x, 0, x, screen_height)
     end
@@ -278,7 +276,7 @@ local function draw_gun_rounds()
     local live_rounds = 0
     local blank_rounds = 0
     for i, round in ipairs(game.gun.rounds) do
-        local color = {1, 1, 1}
+        local color = { 1, 1, 1 }
         if round.used then
             color = ColorUtil.adjustLightness(color, -0.5) -- darken color if used
         end
@@ -289,14 +287,15 @@ local function draw_gun_rounds()
         local scaling = game.gun.draw_vars.scaling
         local radius = game.gun.draw_vars.radius
 
-        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling, nil, radius, radius)
-        
+        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling, nil, radius,
+            radius)
+
         -- Draw a rectangle around the sprite to visualize borders
-        love.graphics.setColor(1, 0, 0) -- red for the border
-        local sprite_width = 32 * scaling -- assuming the sprite width is 32
+        love.graphics.setColor(1, 0, 0)    -- red for the border
+        local sprite_width = 32 * scaling  -- assuming the sprite width is 32
         local sprite_height = 32 * scaling -- assuming the sprite height is 32
         -- Adjust the position by subtracting the radius
-        love.graphics.rectangle("line", round.pos.x - 32 , round.pos.y - 32, sprite_width, sprite_height)
+        love.graphics.rectangle("line", round.pos.x - 32, round.pos.y - 32, sprite_width, sprite_height)
         love.graphics.setColor(1, 1, 1) -- Reset color to white
     end
 end
@@ -311,10 +310,8 @@ local function draw_health_bar(xP, yP, health, max_health)
     for i = 1, max_health do
         local segment_x = x + (i - 1) * (heart_size * heart_scaling) -- calculate x position for each heart
         local sprite = i <= health and game.images.heart_filled or game.images.heart_empty
-        love.graphics.setColor(1, 1, 1) -- white for heart
+        love.graphics.setColor(1, 1, 1)                              -- white for heart
         love.graphics.draw(sprite, segment_x, y, 0, heart_scaling, heart_scaling, heart_size / 2, heart_size / 2)
-
-
     end
     love.graphics.setColor(1, 1, 1) -- Reset color to white
 end
@@ -329,19 +326,20 @@ local function draw_buttons()
             goto continue
         end
         if button.disabled then
-            button_color = {0.5, 0.5, 0.5}
+            button_color = { 0.5, 0.5, 0.5 }
         elseif button.pressed then
-            button_color = {1, 0, 0}
+            button_color = { 1, 0, 0 }
         elseif button.hovered then
-            button_color = {1, 1, 0}
+            button_color = { 1, 1, 0 }
         else
             button_color = button.color
         end
 
         love.graphics.setColor(button_color) -- Use appropriate color based on state
         love.graphics.rectangle("fill", x, y, button.w * love.graphics.getWidth(), button.h * love.graphics.getHeight())
-        love.graphics.setColor(0, 0, 0) -- black for text
-        love.graphics.printf(button.text, x, y + (button.h * love.graphics.getHeight() - 20) / 2, button.w * love.graphics.getWidth(), "center")
+        love.graphics.setColor(0, 0, 0)      -- black for text
+        love.graphics.printf(button.text, x, y + (button.h * love.graphics.getHeight() - 20) / 2,
+            button.w * love.graphics.getWidth(), "center")
         ::continue::
     end
 end
@@ -365,12 +363,12 @@ local function draw_items()
                 elseif item.pressed then
                     love.graphics.setColor(0.9, 0.9, 0.9) -- dark gray for pressed item
                 elseif item.released then
-                    love.graphics.setColor(1, 1, 1) -- white for normal item
+                    love.graphics.setColor(1, 1, 1)       -- white for normal item
                 else
                     love.graphics.setColor(0.6, 0.6, 0.6) -- white for normal item
                 end
 
-                local scaling = 8/3 -- scale the sprite for visibility
+                local scaling = 8 / 3 -- scale the sprite for visibility
                 local sprite = item.is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
                 love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
 
@@ -383,7 +381,7 @@ local function draw_items()
 
     -- Draw item bounds for player and enemy items
     draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85, game.player.items) -- Player items (bottom left)
-    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.1, game.enemy.items) -- Enemy items (top left)
+    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.1, game.enemy.items)   -- Enemy items (top left)
 end
 
 
@@ -393,7 +391,7 @@ local function handle_button_generic(mx, my, inFn, outFn)
         local x = love.graphics.getWidth() * button.x - (button.w * love.graphics.getWidth()) / 2
         local y = love.graphics.getHeight() * button.y - (button.h * love.graphics.getHeight()) / 2
         if mx >= x and mx <= x + (button.w * love.graphics.getWidth()) and my >= y and my <= y + (button.h * love.graphics.getHeight()) then
-            if inFn then inFn(button) end -- Call the in function if provided
+            if inFn then inFn(button) end   -- Call the in function if provided
         else
             if outFn then outFn(button) end -- Call the out function if provided
         end
@@ -407,7 +405,7 @@ local function handle_item_generic(mx, my, inFn, outFn)
         local x = bounds.x
         local y = bounds.y
         if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then
-            if inFn then inFn(item) end -- Call the in function if provided
+            if inFn then inFn(item) end   -- Call the in function if provided
         else
             if outFn then outFn(item) end -- Call the out function if provided
         end
@@ -415,19 +413,19 @@ local function handle_item_generic(mx, my, inFn, outFn)
 end
 
 local function handle_mousemove_buttons(mx, my)
-    handle_button_generic(mx, my, 
+    handle_button_generic(mx, my,
         function(button)
             button.hovered = true
-        end, 
+        end,
         function(button)
             button.hovered = false
             button.pressed = false -- Reset pressed state if the mouse is dragged out
         end
     )
-    handle_item_generic(mx, my, 
+    handle_item_generic(mx, my,
         function(item)
             item.hovered = true
-        end, 
+        end,
         function(item)
             item.hovered = false
             item.pressed = false -- Reset pressed state if the mouse is dragged out
@@ -438,13 +436,13 @@ end
 -- Handle mouse press on buttons using the handle_button_generic function
 local function handle_mousepressed_buttons(mx, my, button)
     if button == 1 then -- Left mouse button
-        handle_button_generic(mx, my, 
+        handle_button_generic(mx, my,
             function(btn)
                 btn.pressed = true -- Set pressed state to true
             end
         )
 
-        handle_item_generic(mx, my, 
+        handle_item_generic(mx, my,
             function(item)
                 item.pressed = true -- Set pressed state to true
             end
@@ -461,13 +459,14 @@ local function handle_shooting_generic(direction, bullet)
     -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
     -- and up/down
     local target_x = (love.graphics.getWidth() * 0.5 + math.random(-50, 50))
-    local target_y = (direction == Actors.PLAYER) and (love.graphics.getHeight() * 0.9) or (love.graphics.getHeight() * 0.1 + math.random(-50, 50))
+    local target_y = (direction == Actors.PLAYER) and (love.graphics.getHeight() * 0.9) or
+    (love.graphics.getHeight() * 0.1 + math.random(-50, 50))
     local tween_duration = 0.2 -- duration of the tween in seconds
-    Timer.tween(tween_duration, bullet.pos, {x = target_x, y = target_y}, 'in-linear', function()
+    Timer.tween(tween_duration, bullet.pos, { x = target_x, y = target_y }, 'in-linear', function()
         -- Callback after tweening is done, you can add any additional logic here
         bullet.used = true -- mark the bullet as used
         game.gun.current_round = game.gun.current_round + 1
-        
+
         if bullet.type == BulletTypes.LIVE then
             if direction == Actors.PLAYER then
                 game.player.health = math.max(0, game.player.health - bullet.dmg)
@@ -503,14 +502,12 @@ local function handle_shooting_generic(direction, bullet)
         elseif game.gun.current_round > game.gun.total_rounds then
             handle_reload(handle_end_of_turn) -- Reload the gun if all rounds are used
         else
-            handle_end_of_turn() -- Handle end of turn logic
+            handle_end_of_turn()              -- Handle end of turn logic
         end
-
-
     end)
 end
 
-do_enemy_turn = function()    -- Handle enemy's turn logic here
+do_enemy_turn = function() -- Handle enemy's turn logic here
     -- For simplicity, let's say the enemy always shoots
     local current_round = game.gun.rounds[game.gun.current_round]
     print("Enemy's turn, current round type:", current_round.type)
@@ -570,7 +567,7 @@ local function handle_mousereleased_buttons(mx, my, button)
             state.load()
         end
 
-        handle_item_generic(mx, my, 
+        handle_item_generic(mx, my,
             function(item)
                 item:activate(game)
                 item.pressed = false -- Reset pressed state after action
@@ -587,7 +584,6 @@ local function load_images()
     game.images[BulletTypes.BLANK] = love.graphics.newQuad(64, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
     game.images.heart_filled = love.graphics.newImage("assets/sprites/heart_filled.png")
     game.images.heart_empty = love.graphics.newImage("assets/sprites/heart_empty.png")
-
 end
 
 
@@ -595,11 +591,10 @@ game.load = function()
     math.randomseed(os.time())
     -- Load any resources needed for the game here
     load_images() -- Load images for the game
-     -- Initialize the game state
+    -- Initialize the game state
 
     initial_game_state()
     generate_gun_rounds()
-
 end
 
 game.update = function(dt)
@@ -612,7 +607,7 @@ game.draw = function()
     -- draw background, sliightly grey
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
     draw_gun_rounds()
-    
+
     draw_buttons()
     draw_turn_indicator()
     draw_health_bar(0.05, 0.9, game.player.health, game.player.max_health)
@@ -624,7 +619,6 @@ end
 game.mousepressed = function(x, y, button, istouch, presses)
     -- Handle mouse press events here
     handle_mousepressed_buttons(x, y, button)
-
 end
 
 game.mousemoved = function(x, y, dx, dy, istouch)
@@ -635,7 +629,6 @@ end
 game.mousereleased = function(x, y, button, istouch, presses)
     -- Handle mouse release events here
     handle_mousereleased_buttons(x, y, button)
-
 end
 
 game.keypressed = function(key, scancode, isrepeat)

@@ -17,7 +17,7 @@ local constants = {
 
 local text_box_font = love.graphics.newFont(20)
 
-local function NewItem (name, type, description, is_enabled_fn, middleware, actor)
+local function NewItem(name, type, description, is_enabled_fn, middleware, actor)
     local item = {
         name = name,
         type = type, -- from ItemTypes in enums.lua
@@ -30,7 +30,7 @@ local function NewItem (name, type, description, is_enabled_fn, middleware, acto
         hovered = false,
         pressed = false,
         is_enabled_fn = is_enabled_fn or function() return true end, -- default to always enabled
-        middleware = middleware or function() end, -- optional middleware function for additional logic when using the item
+        middleware = middleware or function() end,                   -- optional middleware function for additional logic when using the item
         activate = function(self, game_state)
             if self.is_enabled_fn(game_state) then
                 -- Perform the action associated with the item here
@@ -39,10 +39,10 @@ local function NewItem (name, type, description, is_enabled_fn, middleware, acto
                 for i, item in ipairs(game_state.player.items) do
                     if item == self then
                         table.remove(game_state.player.items, i) -- Remove the item from the inventory
-                        break -- Exit loop after removing the item
+                        break                                    -- Exit loop after removing the item
                     end
                 end
-                
+
                 return true -- Indicate success
             else
                 print("Item is not enabled.")
@@ -71,7 +71,6 @@ end
 local function get_item_bounds(start_x, start_y)
     local bounds = {}
     for i = 1, constants.MAX_ITEMS do
-       
         local item_x = start_x + (i - 1) * (constants.ITEM_DRAW_WIDTH + constants.ITEM_DRAW_WIDTH_SPACING)
         local item_y = start_y
 
@@ -82,7 +81,6 @@ local function get_item_bounds(start_x, start_y)
             width = constants.ITEM_DRAW_WIDTH,
             height = constants.ITEM_DRAW_HEIGHT,
         }
-        
     end
 
     return bounds
@@ -93,7 +91,7 @@ local HeartItem = function(actor)
         'heal',
         'consumable', -- Assuming this is a consumable item type
         'Restores 1 heart of health.',
-        function(game_state) 
+        function(game_state)
             return game_state.player.health < game_state.player.max_health -- Only enable if health is below max
         end,
         function(game_state)
@@ -109,4 +107,3 @@ return {
     HeartItem = HeartItem,
     get_item_bounds = get_item_bounds,
 }
-
