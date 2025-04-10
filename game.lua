@@ -53,6 +53,8 @@ local game = {
     player = {
         items = {
             Items.HeartItem(),
+            Items.DoubleDmg(),
+            Items.HeartItem(),
         },
         health = 2,
         max_health = 4,
@@ -290,7 +292,7 @@ local function draw_gun_rounds()
     for i, round in ipairs(game.gun.rounds) do
         local color = { 1, 1, 1 }
         if round.used then
-            color = ColorUtil.adjustLightness(color, -0.5) -- darken color if used
+            color = {0.5, 0.5, 0.5}
         end
         love.graphics.setColor(color)
         local type_quad = game.images[round.type]
@@ -303,12 +305,12 @@ local function draw_gun_rounds()
             radius)
 
         -- Draw a rectangle around the sprite to visualize borders
-        love.graphics.setColor(1, 0, 0)    -- red for the border
-        local sprite_width = 32 * scaling  -- assuming the sprite width is 32
-        local sprite_height = 32 * scaling -- assuming the sprite height is 32
-        -- Adjust the position by subtracting the radius
-        love.graphics.rectangle("line", round.pos.x - 32, round.pos.y - 32, sprite_width, sprite_height)
-        love.graphics.setColor(1, 1, 1) -- Reset color to white
+        -- love.graphics.setColor(1, 0, 0)    -- red for the border
+        -- local sprite_width = 32 * scaling  -- assuming the sprite width is 32
+        -- local sprite_height = 32 * scaling -- assuming the sprite height is 32
+        -- -- Adjust the position by subtracting the radius
+        -- love.graphics.rectangle("line", round.pos.x - 32, round.pos.y - 32, sprite_width, sprite_height)
+        -- love.graphics.setColor(1, 1, 1) -- Reset color to white
     end
 end
 
@@ -358,6 +360,23 @@ end
 
 local function draw_items()
     local MaxItems, BorderColor = Items.constants.MAX_ITEMS, Items.constants.ITEM_BORDER_COLOR
+
+    local function find_item_by_slot(items, slot)
+        for _, item in ipairs(items) do
+            if item.slot == slot then
+                return item
+            end
+        end
+        -- no item by slot found, find first item witout slot & assign slot
+        for _, item in ipairs(items) do
+            if not item.slot then
+                item.slot = slot
+                return item
+            end
+        end
+        return nil -- no item found
+    end
+    
     local function draw_item_bounds_generic(x, y, items)
         -- draw a grid around the item box for user to see where items go
         local bounds = Items.get_item_bounds(x, y)
@@ -365,7 +384,7 @@ local function draw_items()
             local bounds = bounds[i]
             local item_x, item_y = bounds.x, bounds.y
             local ItemWidth, ItemHeight = bounds.width, bounds.height
-            local item = items[i]
+            local item = find_item_by_slot(items, i)
             -- Draw the rectangle for the item box
             love.graphics.setColor(BorderColor[1], BorderColor[2], BorderColor[3]) -- Use the constants defined in items.lua
             love.graphics.rectangle("line", item_x, item_y, ItemWidth, ItemHeight)
@@ -381,7 +400,7 @@ local function draw_items()
                 end
 
                 local scaling = 8 / 3 -- scale the sprite for visibility
-                local sprite = item.is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
+                local sprite = item:is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
                 love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
 
                 if item.hovered or item.pressed then
@@ -414,8 +433,8 @@ end
 
 local function handle_item_generic(mx, my, inFn, outFn)
     -- Check if the mouse is over any of the items and call the appropriate function
-    for i, item in ipairs(game.player.items) do
-        local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[i]
+    for _, item in ipairs(game.player.items) do
+        local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[item.slot]
         local x = bounds.x
         local y = bounds.y
         if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then

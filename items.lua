@@ -29,10 +29,12 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
         owner = actor,
         hovered = false,
         pressed = false,
-        is_enabled_fn = is_enabled_fn or function() return true end, -- default to always enabled
+        is_enabled_fn = function(self, game_state)
+            return game_state.turn == self.owner and is_enabled_fn(game_state) -- Check if the item is enabled
+        end,
         middleware = middleware or function() end,                   -- optional middleware function for additional logic when using the item
         activate = function(self, game_state)
-            if self.is_enabled_fn(game_state) then
+            if self:is_enabled_fn(game_state) then
                 -- Perform the action associated with the item here
                 self.middleware(game_state) -- Call middleware if provided
                 -- remove from inventory by going through the inventory and removing this item
@@ -120,5 +122,7 @@ end
 return {
     constants = constants,
     HeartItem = HeartItem,
+    DoubleDmg = DoubleDmg,
     get_item_bounds = get_item_bounds,
+
 }
