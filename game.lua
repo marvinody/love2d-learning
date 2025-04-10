@@ -5,6 +5,49 @@ Enums = require "enums"
 Text = require "text"
 
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
+local draw_vars = {
+    gun = {
+        xStart = 0.5, -- center of the screen
+        yStart = 0.5, -- center of the screen
+        xSpacing = 2, -- spacing between rounds
+        radius = 16,
+        scaling = 2,
+    },
+    buttons = {
+        shoot = {
+            x = 0.1,  -- left side of the screen
+            y = 0.75, -- towards the bottom of the screen
+            w = 0.1,  -- width of button
+            h = 0.1,  -- height of button
+            text = "Shoot",
+            color = { 0, 1, 0 },
+        },
+        pass = {
+            x = 0.21, -- right side of the screen
+            y = 0.75, -- towards the bottom of the screen
+            w = 0.1,  -- width of button
+            h = 0.1,  -- height of button
+            text = "Pass",
+            color = { 0.5, 0.5, 1 },
+        },
+        game_over_restart = {
+            x = 0.5, -- center of the screen
+            y = 0.5, -- center of the screen
+            w = 0.2, -- width of button
+            h = 0.1, -- height of button
+            text = "Restart",
+            color = { 1, 0, 0 },
+        },
+        game_over_quit = {
+            x = 0.5, -- center of the screen
+            y = 0.6, -- center of the screen
+            w = 0.2, -- width of button
+            h = 0.1, -- height of button
+            text = "Quit",
+            color = { 1, 0, 0 },
+        },
+    }
+}
 
 local game = {
     player = {
@@ -20,13 +63,6 @@ local game = {
         max_health = 4,
     },
     gun = {
-        draw_vars = {
-            xStart = 0.5, -- center of the screen
-            yStart = 0.5, -- center of the screen
-            xSpacing = 2, -- spacing between rounds
-            radius = 16,
-            scaling = 2,
-        },
         rounds = {},
         total_rounds = 0,
         current_round = 1,
@@ -34,52 +70,28 @@ local game = {
     turn = Actors.PLAYER, -- Actors.PLAYER or Actors.ENEMY
     buttons = {
         shoot = {
-            x = 0.1,  -- left side of the screen
-            y = 0.75, -- towards the bottom of the screen
-            w = 0.1,  -- width of button
-            h = 0.1,  -- height of button
-            text = "Shoot",
             hovered = false,
             disabled = true,
             pressed = false,
             draw = true,
-            color = { 0, 1, 0 },
         },
         pass = {
-            x = 0.21, -- right side of the screen
-            y = 0.75, -- towards the bottom of the screen
-            w = 0.1,  -- width of button
-            h = 0.1,  -- height of button
-            text = "Pass",
             hovered = false,
             disabled = true,
             pressed = false,
             draw = true,
-            color = { 0.5, 0.5, 1 },
         },
         game_over_restart = {
-            x = 0.5, -- center of the screen
-            y = 0.5, -- center of the screen
-            w = 0.2, -- width of button
-            h = 0.1, -- height of button
-            text = "Restart",
             hovered = false,
             disabled = false,
             pressed = false,
             draw = false, -- initially hidden
-            color = { 1, 0, 0 },
         },
         game_over_quit = {
-            x = 0.5, -- center of the screen
-            y = 0.6, -- center of the screen
-            w = 0.2, -- width of button
-            h = 0.1, -- height of button
-            text = "Quit",
             hovered = false,
             disabled = false,
             pressed = false,
             draw = false, -- initially hidden
-            color = { 1, 0, 0 },
         },
     },
     images = {
@@ -102,15 +114,15 @@ end
 
 local function assign_default_xy_to_rounds(total_rounds)
     -- find middle position and offset the rounds so they are centered
-    local total_sprite_width = (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling) * total_rounds
-    local total_spacing = game.gun.draw_vars.xSpacing * (total_rounds - 1)
+    local total_sprite_width = (draw_vars.gun.radius * 2 * draw_vars.gun.scaling) * total_rounds
+    local total_spacing = draw_vars.gun.xSpacing * (total_rounds - 1)
     local total_width = total_sprite_width + total_spacing
 
     local offset = (love.graphics.getWidth() - total_width) / 2
     for i, round in ipairs(game.gun.rounds) do
-        local x = (i - 1) * (game.gun.draw_vars.radius * 2 * game.gun.draw_vars.scaling + game.gun.draw_vars.xSpacing)
-        local y = love.graphics.getHeight() * game.gun.draw_vars.yStart
-        round.pos.x = offset + x + game.gun.draw_vars.radius * game.gun.draw_vars.scaling
+        local x = (i - 1) * (draw_vars.gun.radius * 2 * draw_vars.gun.scaling + draw_vars.gun.xSpacing)
+        local y = love.graphics.getHeight() * draw_vars.gun.yStart
+        round.pos.x = offset + x + draw_vars.gun.radius * draw_vars.gun.scaling
         round.pos.y = y
         round.pos.default_x = round.pos.x
         round.pos.default_y = round.pos.y
@@ -284,8 +296,8 @@ local function draw_gun_rounds()
         local type_quad = game.images[round.type]
         local hidden_quad = game.images[BulletTypes.UNKNOWN]
         local quad = (round.used or round.show_type) and type_quad or hidden_quad
-        local scaling = game.gun.draw_vars.scaling
-        local radius = game.gun.draw_vars.radius
+        local scaling = draw_vars.gun.scaling
+        local radius = draw_vars.gun.radius
 
         love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling, nil, radius,
             radius)
@@ -318,10 +330,12 @@ end
 
 local function draw_buttons()
     -- Draw the buttons for shooting and passing
-    for _, button in pairs(game.buttons) do
-        local x = love.graphics.getWidth() * button.x - (button.w * love.graphics.getWidth()) / 2
-        local y = love.graphics.getHeight() * button.y - (button.h * love.graphics.getHeight()) / 2
-        local button_color
+    for idx, button in pairs(game.buttons) do
+        local button_draw = draw_vars.buttons[idx]
+        local h, w = button_draw.h, button_draw.w
+        local x = love.graphics.getWidth() * button_draw.x - (w * love.graphics.getWidth()) / 2
+        local y = love.graphics.getHeight() * button_draw.y - (h * love.graphics.getHeight()) / 2
+        local button_color, text = button_draw.color, button_draw.text
         if not button.draw then
             goto continue
         end
@@ -331,15 +345,13 @@ local function draw_buttons()
             button_color = { 1, 0, 0 }
         elseif button.hovered then
             button_color = { 1, 1, 0 }
-        else
-            button_color = button.color
         end
 
         love.graphics.setColor(button_color) -- Use appropriate color based on state
-        love.graphics.rectangle("fill", x, y, button.w * love.graphics.getWidth(), button.h * love.graphics.getHeight())
+        love.graphics.rectangle("fill", x, y, w * love.graphics.getWidth(), h * love.graphics.getHeight())
         love.graphics.setColor(0, 0, 0)      -- black for text
-        love.graphics.printf(button.text, x, y + (button.h * love.graphics.getHeight() - 20) / 2,
-            button.w * love.graphics.getWidth(), "center")
+        love.graphics.printf(text, x, y + (h * love.graphics.getHeight() - 20) / 2,
+            w * love.graphics.getWidth(), "center")
         ::continue::
     end
 end
@@ -387,10 +399,12 @@ end
 
 local function handle_button_generic(mx, my, inFn, outFn)
     -- Check if the mouse is over any of the buttons and call the appropriate function
-    for _, button in pairs(game.buttons) do
-        local x = love.graphics.getWidth() * button.x - (button.w * love.graphics.getWidth()) / 2
-        local y = love.graphics.getHeight() * button.y - (button.h * love.graphics.getHeight()) / 2
-        if mx >= x and mx <= x + (button.w * love.graphics.getWidth()) and my >= y and my <= y + (button.h * love.graphics.getHeight()) then
+    for key, button in pairs(game.buttons) do
+        local button_draw = draw_vars.buttons[key]
+        local h, w = button_draw.h, button_draw.w
+        local x = love.graphics.getWidth() * button_draw.x - (w * love.graphics.getWidth()) / 2
+        local y = love.graphics.getHeight() * button_draw.y - (h * love.graphics.getHeight()) / 2
+        if mx >= x and mx <= x + (w * love.graphics.getWidth()) and my >= y and my <= y + (h * love.graphics.getHeight()) then
             if inFn then inFn(button) end   -- Call the in function if provided
         else
             if outFn then outFn(button) end -- Call the out function if provided

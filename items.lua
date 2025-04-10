@@ -23,8 +23,8 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
         type = type, -- from ItemTypes in enums.lua
         description = description or "",
         sprites = {
-            enabled = love.graphics.newImage('assets/sprites/pixel-boy/' .. name .. '-enabled.png'),
-            disabled = love.graphics.newImage('assets/sprites/pixel-boy/' .. name .. '-disabled.png'),
+            enabled = love.graphics.newImage('assets/sprites/pixel-boy/' .. type:lower() .. '-enabled.png'),
+            disabled = love.graphics.newImage('assets/sprites/pixel-boy/' .. type:lower() .. '-disabled.png'),
         },
         owner = actor,
         hovered = false,
@@ -88,14 +88,29 @@ end
 
 local HeartItem = function(actor)
     return NewItem(
-        'heal',
-        'consumable', -- Assuming this is a consumable item type
+        '1-UP',
+        Enums.ItemTypes.HEAL_ONE,
         'Restores 1 heart of health.',
         function(game_state)
             return game_state.player.health < game_state.player.max_health -- Only enable if health is below max
         end,
         function(game_state)
             game_state.player.health = math.min(game_state.player.health + 1, game_state.player.max_health) -- Restore 1 heart
+        end,
+        actor or Enums.Actors.PLAYER
+    )
+end
+
+local DoubleDmg = function(actor)
+    return NewItem(
+        'Double Dealing Damage',
+        Enums.ItemTypes.DOUBLE_DMG,
+        'Doubles damage for the next attack.',
+        function(game_state)
+            return true -- Always enabled for simplicity
+        end,
+        function(game_state)
+            game_state.player.damage = game_state.player.damage * 2 -- Double the player's damage
         end,
         actor or Enums.Actors.PLAYER
     )
