@@ -107,12 +107,13 @@ local DoubleDmg = function(actor)
     return NewItem(
         'Double Dealing Damage',
         Enums.ItemTypes.DOUBLE_DMG,
-        'Doubles damage for the next attack.',
+        'Doubles damage for the next attack. Wasted if next attack is a blank.',
         function(game_state)
             return true -- Always enabled for simplicity
         end,
         function(game_state)
-            game_state.player.damage = game_state.player.damage * 2 -- Double the player's damage
+            local current_round = game_state.gun.rounds[game_state.gun.current_round]
+            current_round.dmg = current_round.dmg * 2 -- Double the damage for the current roun
         end,
         actor or Enums.Actors.PLAYER
     )
