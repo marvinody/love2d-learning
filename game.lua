@@ -285,6 +285,82 @@ local function draw_debug_grid()
     end
 end
 
+local background = {
+    layer1 = nil,
+    layer2 = nil,
+    layer1_width = 0,
+    layer1_height = 0,
+    layer2_width = 0,
+    layer2_height = 0,
+    scale = 5, -- Scaling factor for the background
+}
+
+local function load_background()
+    -- Load images once and calculate their scaled dimensions
+    background.layer1 = love.graphics.newImage("assets/sprites/bg_layer1.png")
+    background.layer2 = love.graphics.newImage("assets/sprites/bg_layer2.png")
+    background.layer1:setFilter("nearest", "nearest")
+    background.layer2:setFilter("nearest", "nearest")
+
+    background.layer1_width = background.layer1:getWidth() * background.scale
+    background.layer1_height = background.layer1:getHeight() * background.scale
+    background.layer2_width = background.layer2:getWidth() * background.scale
+    background.layer2_height = background.layer2:getHeight() * background.scale
+end
+
+local function draw_background()
+    local lg = love.graphics
+    local lt = love.timer
+    local screen_width = lg.getWidth()
+    local screen_height = lg.getHeight()
+
+    -- Speeds for parallax effect
+    local layer1_speed = 5
+    local layer2_speed = 17
+
+    -- Calculate offsets based on time
+    local time = lt.getTime()
+    local offset_x1 = time * layer1_speed % background.layer1_width
+    local offset_y1 = time * layer1_speed % background.layer1_height
+    local offset_x2 = time * layer2_speed % background.layer2_width
+    local offset_y2 = time * layer2_speed % background.layer2_height
+
+    -- Calculate the number of tiles needed to cover the screen
+    local tiles_x1 = math.ceil(screen_width / background.layer1_width) + 1
+    local tiles_y1 = math.ceil(screen_height / background.layer1_height) + 1
+    local tiles_x2 = math.ceil(screen_width / background.layer2_width) + 1
+    local tiles_y2 = math.ceil(screen_height / background.layer2_height) + 1
+
+    -- Draw layer 1
+    lg.setColor(1, 1, 1)
+    for x = -1, tiles_x1 do
+        for y = -1, tiles_y1 do
+            lg.draw(
+                background.layer1,
+                x * background.layer1_width - offset_x1,
+                y * background.layer1_height - offset_y1,
+                0,
+                background.scale,
+                background.scale
+            )
+        end
+    end
+
+    -- Draw layer 2 with parallax effect
+    for x = -1, tiles_x2 do
+        for y = -1, tiles_y2 do
+            lg.draw(
+                background.layer2,
+                x * background.layer2_width - offset_x2,
+                y * background.layer2_height - offset_y2,
+                0,
+                background.scale,
+                background.scale
+            )
+        end
+    end
+end
+
 local function draw_gun_rounds()
     -- for current -> total rounds, draw the gun rounds
     local live_rounds = 0
@@ -433,8 +509,8 @@ end
 
 local function handle_item_generic(mx, my, inFn, outFn)
     -- Check if the mouse is over any of the items and call the appropriate function
-    for _, item in ipairs(game.player.items) do
-        local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[item.slot]
+    for i, item in ipairs(game.player.items) do
+        local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[item.slot or i]
         local x = bounds.x
         local y = bounds.y
         if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then
@@ -617,6 +693,7 @@ local function load_images()
     game.images[BulletTypes.BLANK] = love.graphics.newQuad(64, 0, 32, 32, game.images.yinYangSpritesheet:getDimensions())
     game.images.heart_filled = love.graphics.newImage("assets/sprites/heart_filled.png")
     game.images.heart_empty = love.graphics.newImage("assets/sprites/heart_empty.png")
+    load_background()
 end
 
 
@@ -639,6 +716,7 @@ game.draw = function()
     -- draw_debug_grid()
     -- draw background, sliightly grey
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
+    draw_background()
     draw_gun_rounds()
 
     draw_buttons()
