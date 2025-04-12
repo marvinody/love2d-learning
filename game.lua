@@ -3,6 +3,7 @@ Items = require "items"
 ColorUtil = require "colorutil"
 Enums = require "enums"
 Text = require "text"
+local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
 
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
 local draw_vars = {
@@ -50,19 +51,28 @@ local draw_vars = {
 }
 
 local game = {
-    player = {
+    [PLAYER] = {
         items = {
             Items.HeartItem(),
             Items.DoubleDmg(),
+            Items.DoubleDmg(),
             Items.HeartItem(),
+            Items.SkipTurn(),
+            Items.SkipTurn(),
         },
         health = 2,
         max_health = 4,
+        meta = {
+            next_turn_skip = false,
+        }
     },
-    enemy = {
+    [ENEMY] = {
         items = {},
         health = 3,
         max_health = 4,
+        meta = {
+            next_turn_skip = false,
+        }
     },
     gun = {
         rounds = {},
@@ -103,8 +113,8 @@ local game = {
 
 local function initial_game_state()
     -- Initialize the game state here
-    game.player.health = game.player.max_health
-    game.enemy.health = game.enemy.max_health
+    game[PLAYER].health = game[PLAYER].max_health
+    game[ENEMY].health = game[ENEMY].max_health
     game.gun.current_round = 1
     game.gun.rounds = {}
     game.turn = Actors.PLAYER -- Start with player's turn
@@ -230,6 +240,8 @@ local function handle_reload(done)
     game.buttons.shoot.disabled = true
     game.buttons.pass.disabled = true
     generate_gun_rounds(done) -- Generate new rounds
+
+    Items.generate_items(game, PLAYER, 2) -- Generate items for player
 end
 
 local function handle_game_over()
@@ -244,9 +256,9 @@ end
 
 local function draw_game_over_text()
     local text = ""
-    if game.player.health <= 0 then
+    if game[PLAYER].health <= 0 then
         text = "You lose! Try again?"
-    elseif game.enemy.health <= 0 then
+    elseif game[ENEMY].health <= 0 then
         text = "You win! Play again?"
     end
     if text == "" then return end -- No game over text to draw
@@ -351,7 +363,7 @@ local function draw_background()
         for y = -1, tiles_y2 do
             lg.draw(
                 background.layer2,
-                x * background.layer2_width - offset_x2,
+                x * background.layer2_width + offset_x2,
                 y * background.layer2_height - offset_y2,
                 0,
                 background.scale,
@@ -487,8 +499,8 @@ local function draw_items()
     end
 
     -- Draw item bounds for player and enemy items
-    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85, game.player.items) -- Player items (bottom left)
-    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.1, game.enemy.items)   -- Enemy items (top left)
+    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85, game[PLAYER].items) -- Player items (bottom left)
+    draw_item_bounds_generic(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.1, game[ENEMY].items)   -- Enemy items (top left)
 end
 
 
@@ -509,7 +521,7 @@ end
 
 local function handle_item_generic(mx, my, inFn, outFn)
     -- Check if the mouse is over any of the items and call the appropriate function
-    for i, item in ipairs(game.player.items) do
+    for i, item in ipairs(game[PLAYER].items) do
         local bounds = Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)[item.slot or i]
         local x = bounds.x
         local y = bounds.y
@@ -559,6 +571,17 @@ local function handle_mousepressed_buttons(mx, my, button)
     end
 end
 
+local function handle_pass_to_player_turn()
+    -- Handle the player's turn after passing
+    if game[PLAYER].meta.next_turn_skip then
+        game[PLAYER].meta.next_turn_skip = false
+    else
+        game.turn = Actors.PLAYER
+        game.buttons.shoot.disabled = false
+        game.buttons.pass.disabled = false
+    end
+end
+
 local do_enemy_turn -- forward declaration for enemy turn logic
 
 -- direction is just Actors.PLAYER or Actors.ENEMY and bullet is the object
@@ -578,9 +601,9 @@ local function handle_shooting_generic(direction, bullet)
 
         if bullet.type == BulletTypes.LIVE then
             if direction == Actors.PLAYER then
-                game.player.health = math.max(0, game.player.health - bullet.dmg)
+                game[PLAYER].health = math.max(0, game[PLAYER].health - bullet.dmg)
             elseif direction == Actors.ENEMY then
-                game.enemy.health = math.max(0, game.enemy.health - bullet.dmg)
+                game[ENEMY].health = math.max(0, game[ENEMY].health - bullet.dmg)
             end
         end
 
@@ -589,23 +612,20 @@ local function handle_shooting_generic(direction, bullet)
             if game.turn == direction and bullet.type == BulletTypes.BLANK then
                 -- no op. but we enable the buttons again for the player to shoot again if it's their turn
                 if game.turn == Actors.PLAYER then
-                    game.buttons.shoot.disabled = false
-                    game.buttons.pass.disabled = false
+                    handle_pass_to_player_turn()
                 end
             else
                 -- we know that an actor shot the other actor, so we switch Actors no matter what
-                if game.turn == Actors.PLAYER and game.player.health > 0 and game.enemy.health > 0 then
+                if game.turn == Actors.PLAYER and game[PLAYER].health > 0 and game[ENEMY].health > 0 then
                     game.turn = Actors.ENEMY
                     do_enemy_turn() -- handle enemy's turn logic
                 else
-                    game.turn = Actors.PLAYER
-                    game.buttons.shoot.disabled = false
-                    game.buttons.pass.disabled = false
+                    handle_pass_to_player_turn()
                 end
             end
         end
 
-        if game.player.health <= 0 or game.enemy.health <= 0 then
+        if game[PLAYER].health <= 0 or game[ENEMY].health <= 0 then
             handle_game_over() -- Check for game over condition
             return
         elseif game.gun.current_round > game.gun.total_rounds then
@@ -620,7 +640,15 @@ do_enemy_turn = function() -- Handle enemy's turn logic here
     -- For simplicity, let's say the enemy always shoots
     local current_round = game.gun.rounds[game.gun.current_round]
     print("Enemy's turn, current round type:", current_round.type)
-    handle_shooting_generic(Actors.PLAYER, current_round)
+    if (game[ENEMY].meta.next_turn_skip) then
+        print("Enemy's turn skipped")
+        game[ENEMY].meta.next_turn_skip = false
+        game.turn = Actors.PLAYER
+        game.buttons.shoot.disabled = false
+        game.buttons.pass.disabled = false
+    else
+        handle_shooting_generic(Actors.PLAYER, current_round)
+    end
 end
 
 local function button_shoot_action()
@@ -721,8 +749,8 @@ game.draw = function()
 
     draw_buttons()
     draw_turn_indicator()
-    draw_health_bar(0.05, 0.9, game.player.health, game.player.max_health)
-    draw_health_bar(0.05, 0.1, game.enemy.health, game.enemy.max_health)
+    draw_health_bar(0.05, 0.9, game[PLAYER].health, game[PLAYER].max_health)
+    draw_health_bar(0.05, 0.1, game[ENEMY].health, game[ENEMY].max_health)
     draw_items()
     draw_game_over_text()
 end

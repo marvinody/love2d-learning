@@ -1,5 +1,8 @@
 Enums = require('enums')
 Text = require('text')
+GameUtil = require('game_util')
+local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
+
 
 local ITEM_PIXEL_SIZE = 24
 local ITEM_DRAW_SIZE = 64
@@ -38,9 +41,9 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
                 -- Perform the action associated with the item here
                 self.middleware(game_state) -- Call middleware if provided
                 -- remove from inventory by going through the inventory and removing this item
-                for i, item in ipairs(game_state.player.items) do
+                for i, item in ipairs(game_state[PLAYER].items) do
                     if item == self then
-                        table.remove(game_state.player.items, i) -- Remove the item from the inventory
+                        table.remove(game_state[PLAYER].items, i) -- Remove the item from the inventory
                         break                                    -- Exit loop after removing the item
                     end
                 end
@@ -94,10 +97,10 @@ local HeartItem = function(actor)
         Enums.ItemTypes.HEAL_ONE,
         'Restores 1 heart of health.',
         function(game_state)
-            return game_state.player.health < game_state.player.max_health -- Only enable if health is below max
+            return game_state[PLAYER].health < game_state[PLAYER].max_health -- Only enable if health is below max
         end,
         function(game_state)
-            game_state.player.health = math.min(game_state.player.health + 1, game_state.player.max_health) -- Restore 1 heart
+            game_state[PLAYER].health = math.min(game_state[PLAYER].health + 1, game_state[PLAYER].max_health) -- Restore 1 heart
         end,
         actor or Enums.Actors.PLAYER
     )
@@ -109,7 +112,7 @@ local DoubleDmg = function(actor)
         Enums.ItemTypes.DOUBLE_DMG,
         'Doubles damage for the next attack. Wasted if next attack is a blank.',
         function(game_state)
-            return true -- Always enabled for simplicity
+            return GameUtil.are_player_buttons_enabled(game_state)
         end,
         function(game_state)
             local current_round = game_state.gun.rounds[game_state.gun.current_round]
@@ -119,11 +122,44 @@ local DoubleDmg = function(actor)
     )
 end
 
+local SkipTurn = function(actor)
+    return NewItem(
+        'Skip Turn',
+        Enums.ItemTypes.SKIP_TURN,
+        'Skips your enemy\'s next turn.',
+        function(game_state)
+            return GameUtil.are_player_buttons_enabled(game_state) and not game_state[ENEMY].meta.next_turn_skip
+        end,
+        function(game_state)
+            local next_actor = GameUtil.get_next_player_enum(game_state)
+            game_state[next_actor].meta.next_turn_skip = true
+        end,
+        actor or Enums.Actors.PLAYER
+    )
+end
+
+
+local generate_items = function(game_state, actor, count)
+    local empty_slots = constants.MAX_ITEMS - #game_state[actor].items
+    local num_to_create = math.min(count, empty_slots) -- Limit count to available slots
+    for i = 1, num_to_create do
+        local item_type = math.random(1, 3) -- Randomly choose an item type (1 to 3)
+        if item_type == 1 then
+            table.insert(game_state[actor].items, HeartItem(actor))
+        elseif item_type == 2 then
+            table.insert(game_state[actor].items, DoubleDmg(actor))
+        elseif item_type == 3 then
+            table.insert(game_state[actor].items, SkipTurn(actor))
+        end
+    end
+end
 
 return {
     constants = constants,
     HeartItem = HeartItem,
     DoubleDmg = DoubleDmg,
+    SkipTurn = SkipTurn,
     get_item_bounds = get_item_bounds,
+    generate_items = generate_items,
 
 }
