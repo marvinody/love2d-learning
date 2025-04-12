@@ -142,15 +142,11 @@ end
 local generate_items = function(game_state, actor, count)
     local empty_slots = constants.MAX_ITEMS - #game_state[actor].items
     local num_to_create = math.min(count, empty_slots) -- Limit count to available slots
+    local all_items = { HeartItem, DoubleDmg, SkipTurn }
     for i = 1, num_to_create do
-        local item_type = math.random(1, 3) -- Randomly choose an item type (1 to 3)
-        if item_type == 1 then
-            table.insert(game_state[actor].items, HeartItem(actor))
-        elseif item_type == 2 then
-            table.insert(game_state[actor].items, DoubleDmg(actor))
-        elseif item_type == 3 then
-            table.insert(game_state[actor].items, SkipTurn(actor))
-        end
+        local item_type_idx = math.random(1, #all_items) -- Randomly choose an item type from the table
+        local item = all_items[item_type_idx](actor)
+        table.insert(game_state[actor].items, item)
     end
 end
 

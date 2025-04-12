@@ -60,7 +60,7 @@ local game = {
             Items.SkipTurn(),
             Items.SkipTurn(),
         },
-        health = 2,
+        health = 4,
         max_health = 4,
         meta = {
             next_turn_skip = false,
@@ -68,7 +68,7 @@ local game = {
     },
     [ENEMY] = {
         items = {},
-        health = 3,
+        health = 4,
         max_health = 4,
         meta = {
             next_turn_skip = false,
