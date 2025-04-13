@@ -490,9 +490,18 @@ local function draw_items()
 
                 local scaling = 8 / 3 -- scale the sprite for visibility
                 local sprite = item:is_enabled_fn(game) and item.sprites.enabled or item.sprites.disabled
-                love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
+                if not item.dragging then
+                    love.graphics.draw(sprite, item_x, item_y, 0, scaling, scaling)
+                end
 
-                if item.hovered or item.pressed then
+                if item.dragging then
+                    love.graphics.setColor(1, 1, 1) -- white for dragging item
+                    local dragX = love.mouse.getX() - item.drag_data.offset_x
+                    local dragY = love.mouse.getY() - item.drag_data.offset_y
+                    love.graphics.draw(sprite, dragX, dragY, 0, scaling, scaling)
+                end
+
+                if (item.hovered or item.pressed) and not item.dragging then
                     item:draw_text_box()
                 end
             end
@@ -527,14 +536,14 @@ local function handle_item_generic(mx, my, inFn, outFn)
         local x = bounds.x
         local y = bounds.y
         if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then
-            if inFn then inFn(item) end   -- Call the in function if provided
+            if inFn then inFn(item, x, y) end   -- Call the in function if provided
         else
-            if outFn then outFn(item) end -- Call the out function if provided
+            if outFn then outFn(item, x, y) end -- Call the out function if provided
         end
     end
 end
 
-local function handle_mousemove_buttons(mx, my)
+local function handle_mousemove_buttons(mx, my, dx, dy)
     handle_button_generic(mx, my,
         function(button)
             button.hovered = true
@@ -545,8 +554,17 @@ local function handle_mousemove_buttons(mx, my)
         end
     )
     handle_item_generic(mx, my,
-        function(item)
+        function(item, x, y)
             item.hovered = true
+            if item.pressed and not item.dragging then
+                local newDist = math.sqrt(dx^2 + dy^ 2)
+                item.drag_data.distance = item.drag_data.distance + newDist
+                if item.drag_data.distance > Items.constants.DRAG_THRESHOLD then
+                    item.dragging = true
+                    item.drag_data.offset_x = mx - x
+                    item.drag_data.offset_y = my - y
+                end
+            end
         end,
         function(item)
             item.hovered = false
@@ -707,10 +725,44 @@ local function handle_mousereleased_buttons(mx, my, button)
 
         handle_item_generic(mx, my,
             function(item)
-                item:activate(game)
-                item.pressed = false -- Reset pressed state after action
+                if not item.dragging and item.pressed then
+                    item:activate(game)
+                    item.pressed = false
+                end
             end
         )
+
+        local update_item_slot = function(itemDragged, slot)
+            for _, item in ipairs(game[PLAYER].items) do
+                if item.slot == slot then
+                    -- swap the slots
+                    item.slot = itemDragged.slot
+                    itemDragged.slot = slot
+                    break
+                end
+            end
+            -- may have been dragged to empty slot, so we need to update the item slot
+            itemDragged.slot = slot
+        end
+
+        -- go through all items in case one is being dragged
+        for i, item in ipairs(game[PLAYER].items) do
+            if item.dragging then
+                item.dragging = false
+                item.pressed = false
+                item:reset_drag_data()
+                
+                -- go through all item bounds to see if mouse is over any of them
+                for j, bounds in ipairs(Items.get_item_bounds(love.graphics.getWidth() * 0.3, love.graphics.getHeight() * 0.85)) do
+                    local x = bounds.x
+                    local y = bounds.y
+                    if mx >= x and mx <= x + bounds.width and my >= y and my <= y + bounds.height then
+                        update_item_slot(item, j)
+                        break
+                    end
+                end
+            end
+        end
     end
 end
 
@@ -762,8 +814,8 @@ game.mousepressed = function(x, y, button, istouch, presses)
 end
 
 game.mousemoved = function(x, y, dx, dy, istouch)
-    -- Handle mouse movement events here
-    handle_mousemove_buttons(x, y)
+    -- Handle mouse movement events here 
+    handle_mousemove_buttons(x, y, dx, dy)
 end
 
 game.mousereleased = function(x, y, button, istouch, presses)

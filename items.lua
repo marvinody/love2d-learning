@@ -16,6 +16,7 @@ local constants = {
     ITEM_DRAW_SCALE = ITEM_DRAW_SIZE / ITEM_PIXEL_SIZE,
     MAX_ITEMS = 8,
     ITEM_BORDER_COLOR = { 0.8, 0.8, 0.8 },
+    DRAG_THRESHOLD = 20,
 }
 
 local text_box_font = love.graphics.newFont(20)
@@ -32,6 +33,14 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
         owner = actor,
         hovered = false,
         pressed = false,
+        dragging = false,
+        drag_data = {
+            offset_x = 0,
+            offset_y = 0,
+            x = 0,
+            y = 0,
+            distance = 0,
+        },
         is_enabled_fn = function(self, game_state)
             if game_state.turn == Enums.Actors.ENEMY then
                 return self.owner == Enums.Actors.ENEMY
@@ -70,7 +79,16 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
             y = y * love.graphics.getHeight()
             local color = { r = 1, g = 1, b = 1 } -- White color for text
             Text.write_text_box(self.description, x, y, width, height, text_box_font, color)
-        end
+        end,
+        reset_drag_data = function(self)
+            self.drag_data = {
+                offset_x = 0,
+                offset_y = 0,
+                x = 0,
+                y = 0,
+                distance = 0,
+            }
+        end,
     }
     item.sprites.enabled:setFilter('nearest', 'nearest')
     item.sprites.disabled:setFilter('nearest', 'nearest')
