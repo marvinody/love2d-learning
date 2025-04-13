@@ -33,7 +33,11 @@ local function NewItem(name, type, description, is_enabled_fn, middleware, actor
         hovered = false,
         pressed = false,
         is_enabled_fn = function(self, game_state)
-            return game_state.turn == self.owner and is_enabled_fn(game_state) -- Check if the item is enabled
+            if game_state.turn == Enums.Actors.ENEMY then
+                return self.owner == Enums.Actors.ENEMY
+            end
+            local not_locked_out = not game_state[PLAYER].meta.locked_out
+            return game_state.turn == self.owner and not_locked_out and is_enabled_fn(game_state) -- Check if the item is enabled
         end,
         middleware = middleware or function() end,                   -- optional middleware function for additional logic when using the item
         activate = function(self, game_state)

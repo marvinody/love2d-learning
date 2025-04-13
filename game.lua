@@ -64,6 +64,7 @@ local game = {
         max_health = 4,
         meta = {
             next_turn_skip = false,
+            lockout = true
         }
     },
     [ENEMY] = {
@@ -196,10 +197,10 @@ local function generate_gun_rounds(done)
         game.gun.total_rounds = total_rounds
         game.gun.current_round = 1 -- reset current round
 
-        -- TODO shuffle the rounds to randomize their order
         -- set buttons to clickable
         game.buttons.shoot.disabled = false
         game.buttons.pass.disabled = false
+        game[PLAYER].meta.lockout = false
 
         if done then done() end -- Call the done function if provided
     end
@@ -653,7 +654,7 @@ end
 
 local function button_shoot_action()
     -- Handle the shoot button action
-    if not game.buttons.shoot.disabled then
+    if not game.buttons.shoot.disabled and not game[PLAYER].meta.lockout then
         game.buttons.shoot.disabled = true
         game.buttons.pass.disabled = true
         local current_round = game.gun.rounds[game.gun.current_round]
@@ -669,7 +670,7 @@ local function button_pass_action()
     -- this will shoot the player himself
     -- if it's a blank, player gets to shoot again (pass)
     -- if it's a bullet, player loses health and enemy gets to shoot
-    if not game.buttons.pass.disabled then
+    if not game.buttons.pass.disabled and not game[PLAYER].meta.lockout then
         game.buttons.shoot.disabled = true
         game.buttons.pass.disabled = true
         local current_round = game.gun.rounds[game.gun.current_round]
