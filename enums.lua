@@ -18,6 +18,7 @@ local ItemTypes = {
     DOUBLE_DMG = "DOUBLE_DMG", -- Doubles damage for the next attack
     SKIP_TURN = "SKIP_TURN", -- Skips the next player's turn
     POLARIZER = "POLARIZER", -- Changes the polarity of the next bullet
+    VISION = "VISION", -- Reveals the next bullets
 }
 
 return {

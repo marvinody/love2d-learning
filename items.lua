@@ -18,6 +18,7 @@ local constants = {
     MAX_ITEMS = 8,
     ITEM_BORDER_COLOR = { 0.8, 0.8, 0.8 },
     DRAG_THRESHOLD = 20,
+    SPIN_TIME = 1.0,
 }
 
 local text_box_font = love.graphics.newFont(20)
@@ -167,18 +168,46 @@ local Polarizer = function(actor)
         Enums.ItemTypes.POLARIZER,
         'Changes the "polarity" of the next bullet.',
         function(game_state)
-            return GameUtil.are_player_buttons_enabled(game_state) and not game_state[ENEMY].meta.polarized
+            return GameUtil.are_player_buttons_enabled(game_state)
         end,
         function(game_state)
             local round = game_state.gun.rounds[game_state.gun.current_round]
-            if round.type == Enums.BulletTypes.LIVE then
-                round.type = Enums.BulletTypes.BLANK
-                round.dmg = 0
-            elseif round.type == Enums.BulletTypes.BLANK then
-                round.type = Enums.BulletTypes.LIVE
-                round.dmg = 1 -- might be a bug if user uses double before?
-            end
-            Timer.tween(0.2, round, { rotation = math.pi }, 'in-out-cubic')
+            local initial_rotation = round.rotation
+
+            Timer.tween(constants.SPIN_TIME, round, { rotation = initial_rotation + math.pi*8 }, 'in-out-cubic')
+
+            Timer.after(constants.SPIN_TIME/2, function()
+                if round.type == Enums.BulletTypes.LIVE then
+                    round.type = Enums.BulletTypes.BLANK
+                    round.dmg = 0
+                elseif round.type == Enums.BulletTypes.BLANK then
+                    round.type = Enums.BulletTypes.LIVE
+                    round.dmg = 1 -- might be a bug if user uses double before?
+                end
+            end)
+        end,
+        actor or Enums.Actors.PLAYER
+    )
+end
+
+local Vision = function(actor)
+    return NewItem(
+        'Vision',
+        Enums.ItemTypes.VISION,
+        'Reveals the next bullet.',
+        function(game_state)
+            local round = game_state.gun.rounds[game_state.gun.current_round]
+            return GameUtil.are_player_buttons_enabled(game_state) and not round.show_type
+        end,
+        function(game_state)
+            local round = game_state.gun.rounds[game_state.gun.current_round]
+            local initial_rotation = round.rotation
+
+            Timer.tween(constants.SPIN_TIME, round, { rotation = initial_rotation + math.pi*8 }, 'in-out-cubic')
+
+            Timer.after(constants.SPIN_TIME/2, function()
+                round.show_type = true
+            end)
         end,
         actor or Enums.Actors.PLAYER
     )
@@ -202,6 +231,7 @@ return {
     DoubleDmg = DoubleDmg,
     SkipTurn = SkipTurn,
     Polarizer = Polarizer,
+    Vision = Vision,
     get_item_bounds = get_item_bounds,
     generate_items = generate_items,
 

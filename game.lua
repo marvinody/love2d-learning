@@ -58,6 +58,7 @@ local game = {
             Items.DoubleDmg(),
             Items.SkipTurn(),
             Items.Polarizer(),
+            Items.Vision(),
         },
         health = 4,
         max_health = 4,
