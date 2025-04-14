@@ -2,6 +2,7 @@ Enums = require('enums')
 Text = require('text')
 GameUtil = require('game_util')
 local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
+Timer = require "lib/hump/timer"
 
 
 local ITEM_PIXEL_SIZE = 24
@@ -160,6 +161,29 @@ local SkipTurn = function(actor)
     )
 end
 
+local Polarizer = function(actor)
+    return NewItem(
+        'Polarizer',
+        Enums.ItemTypes.POLARIZER,
+        'Changes the "polarity" of the next bullet.',
+        function(game_state)
+            return GameUtil.are_player_buttons_enabled(game_state) and not game_state[ENEMY].meta.polarized
+        end,
+        function(game_state)
+            local round = game_state.gun.rounds[game_state.gun.current_round]
+            if round.type == Enums.BulletTypes.LIVE then
+                round.type = Enums.BulletTypes.BLANK
+                round.dmg = 0
+            elseif round.type == Enums.BulletTypes.BLANK then
+                round.type = Enums.BulletTypes.LIVE
+                round.dmg = 1 -- might be a bug if user uses double before?
+            end
+            Timer.tween(0.2, round, { rotation = math.pi }, 'in-out-cubic')
+        end,
+        actor or Enums.Actors.PLAYER
+    )
+end
+
 
 local generate_items = function(game_state, actor, count)
     local empty_slots = constants.MAX_ITEMS - #game_state[actor].items
@@ -177,6 +201,7 @@ return {
     HeartItem = HeartItem,
     DoubleDmg = DoubleDmg,
     SkipTurn = SkipTurn,
+    Polarizer = Polarizer,
     get_item_bounds = get_item_bounds,
     generate_items = generate_items,
 

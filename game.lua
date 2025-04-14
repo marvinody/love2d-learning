@@ -3,6 +3,7 @@ Items = require "items"
 ColorUtil = require "colorutil"
 Enums = require "enums"
 Text = require "text"
+Util = require "util"
 local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
 
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
@@ -55,10 +56,8 @@ local game = {
         items = {
             Items.HeartItem(),
             Items.DoubleDmg(),
-            Items.DoubleDmg(),
-            Items.HeartItem(),
             Items.SkipTurn(),
-            Items.SkipTurn(),
+            Items.Polarizer(),
         },
         health = 4,
         max_health = 4,
@@ -171,6 +170,7 @@ local function generate_gun_rounds(done)
                 default_x = 0,
                 default_y = 0,
             }, -- initial position
+            rotation = 0,
             show_type = true,
         }
     end
@@ -193,6 +193,11 @@ local function generate_gun_rounds(done)
     local function activate_play()
         -- hide the actual order by shuffling the rounds again
         shuffle_gun_rounds()
+
+        print("Gun rounds generated:")
+        for i, round in ipairs(game.gun.rounds) do
+            print(i, round.type)
+        end
 
         game.gun.total_rounds = total_rounds
         game.gun.current_round = 1 -- reset current round
@@ -226,10 +231,7 @@ local function generate_gun_rounds(done)
     -- show them for 2 seconds
     Timer.after(2, collapse_rounds)
 
-    print("Gun rounds generated:")
-    for i, round in ipairs(game.gun.rounds) do
-        print(i, round.type)
-    end
+
 end
 
 local function handle_reload(done)
@@ -375,9 +377,6 @@ local function draw_background()
 end
 
 local function draw_gun_rounds()
-    -- for current -> total rounds, draw the gun rounds
-    local live_rounds = 0
-    local blank_rounds = 0
     for i, round in ipairs(game.gun.rounds) do
         local color = { 1, 1, 1 }
         if round.used then
@@ -390,7 +389,7 @@ local function draw_gun_rounds()
         local scaling = draw_vars.gun.scaling
         local radius = draw_vars.gun.radius
 
-        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, 0, scaling, nil, radius,
+        love.graphics.draw(game.images.yinYangSpritesheet, quad, round.pos.x, round.pos.y, round.rotation, scaling, nil, radius,
             radius)
 
         -- Draw a rectangle around the sprite to visualize borders
@@ -469,6 +468,9 @@ local function draw_items()
     local function draw_item_bounds_generic(x, y, items)
         -- draw a grid around the item box for user to see where items go
         local bounds = Items.get_item_bounds(x, y)
+
+        local is_any_item_dragging = Util.any(items, function(item) return item.dragging end)
+
         for i = 1, MaxItems do
             local bounds = bounds[i]
             local item_x, item_y = bounds.x, bounds.y
@@ -501,7 +503,7 @@ local function draw_items()
                     love.graphics.draw(sprite, dragX, dragY, 0, scaling, scaling)
                 end
 
-                if (item.hovered or item.pressed) and not item.dragging then
+                if (item.hovered or item.pressed) and not is_any_item_dragging then
                     item:draw_text_box()
                 end
             end
