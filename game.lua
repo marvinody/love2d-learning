@@ -48,7 +48,17 @@ local draw_vars = {
             text = "Quit",
             color = { 1, 0, 0 },
         },
-    }
+    },
+    text_box_templates = {
+        enemy = {
+            x= 0.05, -- left side of the screen
+            y = 0.75,
+            width = 0.9, -- width of the text box
+            height = 0.2, -- height of the text box
+            typing_speed = 10,
+        },
+    },
+    text_boxes = {},
 }
 
 local game = {
@@ -73,6 +83,7 @@ local game = {
         max_health = 4,
         meta = {
             next_turn_skip = false,
+            hit_for_first_time = false,
         }
     },
     gun = {
@@ -107,6 +118,7 @@ local game = {
             draw = false, -- initially hidden
         },
     },
+    in_dialog = false, -- whether we are in a dialog state
     images = {
 
     }
@@ -629,6 +641,11 @@ local function handle_shooting_generic(direction, bullet)
             end
         end
 
+        local function proceed_to_enemy()
+            game.turn = Actors.ENEMY
+            do_enemy_turn() -- handle enemy's turn logic
+        end
+
         local function handle_end_of_turn()
             -- if turn and direction are the same, the actor gets to shoot again
             if game.turn == direction and bullet.type == BulletTypes.BLANK then
@@ -639,8 +656,22 @@ local function handle_shooting_generic(direction, bullet)
             else
                 -- we know that an actor shot the other actor, so we switch Actors no matter what
                 if game.turn == Actors.PLAYER and game[PLAYER].health > 0 and game[ENEMY].health > 0 then
-                    game.turn = Actors.ENEMY
-                    do_enemy_turn() -- handle enemy's turn logic
+                    -- check if enemy was hit for the first time later
+                    if not game[ENEMY].meta.hit_for_first_time then
+                        game[ENEMY].meta.hit_for_first_time = true
+                        local text_box = Text.make_text_dialogue_setup("OW, that hurt! I'll show you real pain.", draw_vars.text_box_templates.enemy, 
+                            function()
+                                proceed_to_enemy()
+                                table.remove(draw_vars.text_boxes, 1) -- remove the text box after it's done
+                            end
+                        )
+                        table.insert(draw_vars.text_boxes, text_box)
+                        GameUtil.set_in_dialog(game)
+                    else
+                        proceed_to_enemy()
+                    end
+                    
+
                 else
                     handle_pass_to_player_turn()
                 end
@@ -769,6 +800,16 @@ local function handle_mousereleased_buttons(mx, my, button)
     end
 end
 
+local function draw_text_boxes()
+    if game.in_dialog and #draw_vars.text_boxes > 0 then
+        for _, textbox in pairs(draw_vars.text_boxes) do
+            if textbox.draw then
+                textbox:draw()
+            end
+        end
+    end
+end
+
 local function load_images()
     game.images.yinYangSpritesheet = love.graphics.newImage("assets/sprites/yinyang.png")
     game.images.yinYangSpritesheet:setFilter("nearest", "nearest")
@@ -794,6 +835,13 @@ end
 game.update = function(dt)
     -- Update the game state here, if needed
     Timer.update(dt)
+
+    -- for any text boxes, update them
+    for _, textbox in pairs(draw_vars.text_boxes) do
+        if textbox.update then
+            textbox:update(dt)
+        end
+    end
 end
 
 game.draw = function()
@@ -808,6 +856,7 @@ game.draw = function()
     draw_health_bar(0.05, 0.9, game[PLAYER].health, game[PLAYER].max_health)
     draw_health_bar(0.05, 0.1, game[ENEMY].health, game[ENEMY].max_health)
     draw_items()
+    draw_text_boxes()
     draw_game_over_text()
 end
 
@@ -824,6 +873,15 @@ end
 game.mousereleased = function(x, y, button, istouch, presses)
     -- Handle mouse release events here
     handle_mousereleased_buttons(x, y, button)
+
+    if game.in_dialog and #draw_vars.text_boxes > 0 then
+        for _, textbox in pairs(draw_vars.text_boxes) do
+            if textbox:mouse_released(x, y, button) then
+                return -- If any textbox handled the mouse release, exit early
+            end
+        end
+        
+    end
 end
 
 game.keypressed = function(key, scancode, isrepeat)
