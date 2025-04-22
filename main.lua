@@ -5,6 +5,7 @@ end
 states = {}
 states.menu = require ('menu')
 states.game = require ('game')
+states.settings = require ('settings')
 
 state = states.menu
 
@@ -18,6 +19,7 @@ function love.load ()
         minheight = 540      -- Minimum height (optional)
     })
 	state.load ()
+    states.settings.load() -- load settings if any saved
 end
 
 function love.update (dt)

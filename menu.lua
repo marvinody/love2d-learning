@@ -9,6 +9,15 @@ local menu = {
             w = 0.625,  -- 500/800
             h = 0.0833, -- 50/600
             hovered = false,
+        },
+        {
+            name = "settings",
+            text = "Settings",
+            x = 0.75,  -- Position near the top right (600/800)
+            y = 0.1,   -- Position near the top (60/600)
+            w = 0.2,   -- Width (160/800)
+            h = 0.0833, -- Height (50/600)
+            hovered = false,
         }
     },
     text_color = { 0, 0, 0 },              -- black
@@ -79,6 +88,12 @@ menu.mousepressed = function(x, y, button, istouch, presses)
                     -- Here you would typically change the state to the game state
                     state = states.game
                     state.load() -- Load the game state if needed
+                elseif btn.name == "settings" then
+                    -- Open settings menu or perform the associated action
+                    print("Opening settings...")
+                    -- Here you would typically change the state to the settings state
+                    state = states.settings
+                    state.load() -- Load the settings state if needed
                 end
             end
         end
