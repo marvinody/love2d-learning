@@ -6,6 +6,7 @@ states = {}
 states.menu = require ('menu')
 states.game = require ('game')
 states.settings = require ('settings')
+states.char_select = require ('char_select')
 
 state = states.menu
 

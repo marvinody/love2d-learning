@@ -6,6 +6,12 @@ local Actors = {
     ENEMY = "ENEMY"
 }
 
+local Characters = {
+    REIMU_HAKUREI = "REIMU_HAKUREI",
+    MARISA_KIRISAME = "MARISA_KIRISAME",
+    YOUMU_KONPAKU = "YOUMU_KONPAKU",
+}
+
 -- Enum for bullet types
 local BulletTypes = {
     LIVE = "LIVE",
@@ -25,4 +31,5 @@ return {
     Actors = Actors,
     BulletTypes = BulletTypes,
     ItemTypes = ItemTypes,
+    Characters = Characters,
 }

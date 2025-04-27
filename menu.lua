@@ -86,7 +86,7 @@ menu.mousepressed = function(x, y, button, istouch, presses)
                     -- Start the game or transition to the game state
                     print("Starting game...")
                     -- Here you would typically change the state to the game state
-                    state = states.game
+                    state = states.char_select
                     state.load() -- Load the game state if needed
                 elseif btn.name == "settings" then
                     -- Open settings menu or perform the associated action
