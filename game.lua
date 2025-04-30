@@ -1,9 +1,10 @@
-Timer = require "lib/hump/timer"
-Items = require "items"
-ColorUtil = require "colorutil"
-Enums = require "enums"
-Text = require "text"
-Util = require "util"
+local Timer = require "lib/hump/timer"
+local Items = require "items"
+local Enums = require "enums"
+local Text = require "text"
+local Util = require "util"
+local char_data = require('char_data')
+local Effect = require('effect')
 local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
 
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
@@ -61,20 +62,26 @@ local draw_vars = {
     text_boxes = {},
 }
 
+local default_item_rates = {
+    [Enums.ItemTypes.HEAL_ONE] = 1,
+    [Enums.ItemTypes.DOUBLE_DMG] = 1,
+    [Enums.ItemTypes.SKIP_TURN] = 1,
+    [Enums.ItemTypes.POLARIZER] = 1,
+    [Enums.ItemTypes.VISION] = 1,
+}
+
 local game = {
     [PLAYER] = {
+        character = Enums.Characters.REIMU_HAKUREI, -- may be updated by char_select
         items = {
-            Items.HeartItem(),
-            Items.DoubleDmg(),
-            Items.SkipTurn(),
-            Items.Polarizer(),
-            Items.Vision(),
+
         },
         health = 4,
         max_health = 4,
         meta = {
             next_turn_skip = false,
-            lockout = true
+            lockout = true,
+            item_rates = default_item_rates,
         }
     },
     [ENEMY] = {
@@ -124,6 +131,17 @@ local game = {
     }
 }
 
+local effects = {}
+
+local function handle_effects(timing)
+    -- Iterate through all effects and apply them based on the timing
+    local effects_to_apply = Effect.filter_type(effects, timing)
+
+    for _, effect in ipairs(effects_to_apply) do
+        effect:apply(game)
+    end
+end
+
 local function initial_game_state()
     -- Initialize the game state here
     game[PLAYER].health = game[PLAYER].max_health
@@ -135,6 +153,13 @@ local function initial_game_state()
     game.buttons.pass.disabled = true
     game.buttons.game_over_restart.draw = false
     game.buttons.game_over_quit.draw = false
+    game[PLAYER].meta.item_rates = default_item_rates
+    local char_effects = char_data[game[PLAYER].character].effects or {}
+    for _, effect in ipairs(char_effects) do
+        table.insert(effects, effect)
+    end
+
+    handle_effects(Enums.EffectTimings.START_OF_GAME)
 end
 
 local function assign_default_xy_to_rounds(total_rounds)
@@ -257,7 +282,11 @@ local function handle_reload(done)
     game.buttons.pass.disabled = true
     generate_gun_rounds(done) -- Generate new rounds
 
+    handle_effects(Enums.EffectTimings.PRE_ITEM_GENERATION)
     Items.generate_items(game, PLAYER, 2) -- Generate items for player
+    handle_effects(Enums.EffectTimings.POST_ITEM_GENERATION)
+
+    handle_effects(Enums.EffectTimings.START_OF_ROUND)
 end
 
 local function handle_game_over()
@@ -643,6 +672,8 @@ local function handle_shooting_generic(direction, bullet)
 
         local function proceed_to_enemy()
             game.turn = Actors.ENEMY
+            handle_effects(Enums.EffectTimings.START_OF_EVERY_TURN)
+            handle_effects(Enums.EffectTimings.START_OF_ENEMY_TURN)
             do_enemy_turn() -- handle enemy's turn logic
         end
 

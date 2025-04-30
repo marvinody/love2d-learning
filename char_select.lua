@@ -8,20 +8,7 @@ local char_select = {
     selected_background_color = { 1, 1, 0 }  -- yellow5
 }
 
-local char_data = {
-    [Enums.Characters.REIMU_HAKUREI] = {
-        name = "Reimu Hakurei",
-        description = "The shrine maiden of the Hakurei Shrine.\nGuaranteed to get +1 HP at the start of each round.",
-    },
-    [Enums.Characters.MARISA_KIRISAME] = {
-        name = "Marisa Kirisame",
-        description = "A human magician who loves collecting powerful magic and artifacts.\nIncreased chance to get DMG UP.",
-    },
-    [Enums.Characters.YOUMU_KONPAKU] = {
-        name = "Youmu Konpaku",
-        description = "A half-human, half-ghost swordswoman serving Yuyuko Saigyouji.\nStarts the game with 4 polarity swaps.",
-    },
-}
+local char_data = require('char_data')
 
 local char_order = {
     Enums.Characters.REIMU_HAKUREI,
@@ -176,6 +163,7 @@ local mousepressed_active_buttons = function(x, y, button, istouch, presses)
                     print("Starting game...")
                     -- Here you would typically change the local_state to the game local_state
                     state = states.game
+                    state[Enums.Actors.PLAYER].character = local_state.selected_character
                     state.load() -- Load the game local_state if needed
                 end
             end
@@ -350,7 +338,6 @@ char_select.mousepressed = function(x, y, button, istouch, presses)
                 y >= headBounds.y and y <= headBounds.y + headBounds.height then
                 -- The mouse click is on this character's head
                 local_state.selected_character = character
-                print("Selected character:", local_state.selected_character)
                 break -- Exit loop after selecting a character
             end
         end
@@ -372,7 +359,6 @@ char_select.mousemoved = function(x, y, dx, dy, istouch)
             if local_state.selected_character ~= character then
                 local_state.hovered_character = character
                 -- Optionally, you can add logic to update the UI or highlight the selected character
-                print("hovered character:", local_state.hovered_character)
                 hovered = true
             end
         else
