@@ -12,6 +12,10 @@ local Characters = {
     YOUMU_KONPAKU = "YOUMU_KONPAKU",
 }
 
+local Enemies = {
+    SAGUME_KISHIN = "SAGUME_KISHIN",
+}
+
 -- Enum for bullet types
 local BulletTypes = {
     LIVE = "LIVE",
@@ -38,10 +42,26 @@ local EffectTimings = {
     BULLET_GENERATION = "BULLET_GENERATION",
 }
 
+local TextTimings = {
+    ENTRANCE = "ENTRANCE",
+    HIT_FOR_FIRST_TIME = "HIT_FOR_FIRST_TIME",
+    EXIT = "EXIT",
+}
+
+-- not real game state, just used for some screens
+local GameState = {
+    IDLE = "IDLE",
+    IN_DIALOG = "IN_DIALOG",
+    WAITING_FOR_INPUT_POST_RELOAD = "WAITING_FOR_INPUT_POST_RELOAD",
+}
+
 return {
     Actors = Actors,
     BulletTypes = BulletTypes,
     ItemTypes = ItemTypes,
     Characters = Characters,
+    Enemies = Enemies,
     EffectTimings = EffectTimings,
+    TextTimings = TextTimings,
+    GameState = GameState,
 }

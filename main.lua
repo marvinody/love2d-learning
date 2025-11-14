@@ -10,14 +10,16 @@ states.char_select = require ('char_select')
 
 state = states.menu
 
+local width = 1920
+local height = 1080
 
 function love.load ()
-	love.window.setMode(960, 540, {
+	love.window.setMode(width, height, {
         fullscreen = false,  -- Set to true for fullscreen
         resizable = false,   -- Disable resizing to maintain aspect ratio
         vsync = true,        -- Enable vertical sync
-        minwidth = 960,      -- Minimum width (optional)
-        minheight = 540      -- Minimum height (optional)
+        minwidth = width,      -- Minimum width (optional)
+        minheight = height      -- Minimum height (optional)
     })
 	state.load ()
     states.settings.load() -- load settings if any saved

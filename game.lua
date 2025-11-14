@@ -4,6 +4,7 @@ local Enums = require "enums"
 local Text = require "text"
 local Util = require "util"
 local char_data = require('char_data')
+local enemy_data = require('enemy_data')
 local Effect = require('effect')
 local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
 
@@ -126,9 +127,13 @@ local game = {
         },
     },
     in_dialog = false, -- whether we are in a dialog state
+    state = Enums.GameState.IDLE,
     images = {
 
-    }
+    },
+    click_handlers = {
+        onetime = {},
+    },
 }
 
 local effects = {}
@@ -144,6 +149,8 @@ end
 
 local function initial_game_state()
     -- Initialize the game state here
+    game[ENEMY].character = Enums.Enemies.SAGUME_KISHIN
+    game[ENEMY].max_health = enemy_data[game[ENEMY].character].max_hp
     game[PLAYER].health = game[PLAYER].max_health
     game[ENEMY].health = game[ENEMY].max_health
     game.gun.current_round = 1
@@ -267,8 +274,12 @@ local function generate_gun_rounds(done)
     end
 
     -- show them for 2 seconds
-    Timer.after(2, collapse_rounds)
-
+    game.state = Enums.GameState.WAITING_FOR_INPUT_POST_RELOAD
+    table.insert(game.click_handlers.onetime, function(mx, my)
+        collapse_rounds()
+        game.state = Enums.GameState.IDLE
+        return true
+    end)
 
 end
 
@@ -650,6 +661,9 @@ local do_enemy_turn -- forward declaration for enemy turn logic
 -- direction is just Actors.PLAYER or Actors.ENEMY and bullet is the object
 local function handle_shooting_generic(direction, bullet)
     bullet.used = true
+    local is_blank_round = (bullet.type == BulletTypes.BLANK)
+    local is_live_round = (bullet.type == BulletTypes.LIVE)
+
     print("user:", game.turn, "going to:", direction, "bullet:", bullet.type)
     -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
     -- and up/down
@@ -662,7 +676,7 @@ local function handle_shooting_generic(direction, bullet)
         bullet.used = true -- mark the bullet as used
         game.gun.current_round = game.gun.current_round + 1
 
-        if bullet.type == BulletTypes.LIVE then
+        if is_live_round then
             if direction == Actors.PLAYER then
                 game[PLAYER].health = math.max(0, game[PLAYER].health - bullet.dmg)
             elseif direction == Actors.ENEMY then
@@ -679,16 +693,16 @@ local function handle_shooting_generic(direction, bullet)
 
         local function handle_end_of_turn()
             -- if turn and direction are the same, the actor gets to shoot again
-            if game.turn == direction and bullet.type == BulletTypes.BLANK then
+            if game.turn == direction and is_blank_round then
                 -- no op. but we enable the buttons again for the player to shoot again if it's their turn
                 if game.turn == Actors.PLAYER then
                     handle_pass_to_player_turn()
                 end
             else
-                -- we know that an actor shot the other actor, so we switch Actors no matter what
+                -- we know that an actor shot the other actor, so we switch Actors no matter what at the end
                 if game.turn == Actors.PLAYER and game[PLAYER].health > 0 and game[ENEMY].health > 0 then
                     -- check if enemy was hit for the first time later
-                    if not game[ENEMY].meta.hit_for_first_time then
+                    if not game[ENEMY].meta.hit_for_first_time and is_live_round then
                         game[ENEMY].meta.hit_for_first_time = true
                         local text_box = Text.make_text_dialogue_setup("OW, that hurt! I'll show you real pain.", draw_vars.text_box_templates.enemy, 
                             function()
@@ -832,7 +846,7 @@ local function handle_mousereleased_buttons(mx, my, button)
 end
 
 local function draw_text_boxes()
-    if game.in_dialog and #draw_vars.text_boxes > 0 then
+    if game.state == Enums.GameState.IN_DIALOG and #draw_vars.text_boxes > 0 then
         for _, textbox in pairs(draw_vars.text_boxes) do
             if textbox.draw then
                 textbox:draw()
@@ -905,7 +919,24 @@ game.mousereleased = function(x, y, button, istouch, presses)
     -- Handle mouse release events here
     handle_mousereleased_buttons(x, y, button)
 
-    if game.in_dialog and #draw_vars.text_boxes > 0 then
+    if #game.click_handlers.onetime > 0 then
+        -- call each handler. if one returns true, remove it but keep processing the others
+        local handlers_to_remove = {}
+        for idx, handler in ipairs(game.click_handlers.onetime) do
+            local handled = handler(x, y)
+            print("One-time click handler returned:", handled)
+            if handled then
+                table.insert(handlers_to_remove, idx)
+            end
+        end
+
+        -- Remove the handled click handlers
+        for i = #handlers_to_remove, 1, -1 do
+            table.remove(game.click_handlers.onetime, handlers_to_remove[i])
+        end
+    end
+    
+    if game.state == Enums.GameState.IN_DIALOG and #draw_vars.text_boxes > 0 then
         for _, textbox in pairs(draw_vars.text_boxes) do
             if textbox:mouse_released(x, y, button) then
                 return -- If any textbox handled the mouse release, exit early
