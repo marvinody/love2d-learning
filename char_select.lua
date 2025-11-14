@@ -148,7 +148,7 @@ local draw_active_buttons = function()
         love.graphics.printf(button.text, x, textY, w, 'center')    end
 end
 
-local mousepressed_active_buttons = function(x, y, button, istouch, presses)
+local mousereleased_active_buttons = function(x, y, button, istouch, presses)
     -- Handle mouse press events for active buttons
     if button == 1 then -- Left mouse button
         for _, btn in ipairs(local_state.active_buttons) do
@@ -343,7 +343,6 @@ char_select.mousepressed = function(x, y, button, istouch, presses)
         end
     end
 
-    mousepressed_active_buttons(x, y, button, istouch, presses)
 end
 
 char_select.mousemoved = function(x, y, dx, dy, istouch)
@@ -377,6 +376,7 @@ end
 
 char_select.mousereleased = function(x, y, button, istouch, presses)
     -- Handle mouse release events here
+    mousereleased_active_buttons(x, y, button, istouch, presses)
 end
 
 char_select.keypressed = function(key, scancode, isrepeat)

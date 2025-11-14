@@ -11,7 +11,7 @@ local are_player_buttons_enabled = function(game_state)
 end
 
 local set_in_dialog = function(game_state)
-    game_state.in_dialog = true
+    game_state.state = Enums.GameState.IN_DIALOG
     game_state.buttons.shoot.disabled = true
     game_state.buttons.pass.disabled = true
 end
