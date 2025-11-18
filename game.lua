@@ -461,6 +461,14 @@ local function draw_health_bar(xP, yP, health, max_health)
     local y = love.graphics.getHeight() * yP
     local heart_size = 32
     local heart_scaling = 2
+    
+    -- Draw background rectangle
+    local total_width = max_health * (heart_size * heart_scaling)
+    local padding = 8
+    local scaled_heart_size = heart_size * heart_scaling
+    love.graphics.setColor(0, 0, 0, 0.6)
+    love.graphics.rectangle("fill", x - scaled_heart_size / 2 - padding, y - scaled_heart_size / 2 - padding, total_width + padding * 2, scaled_heart_size + padding * 2)
+    
     -- for each health point, draw a segment of the bar
     for i = 1, max_health do
         local segment_x = x + (i - 1) * (heart_size * heart_scaling) -- calculate x position for each heart

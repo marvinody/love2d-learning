@@ -29,7 +29,8 @@ local local_state = {
             h = 0.0833,
             hovered = false,
         },
-    }
+    },
+    locked_char_count = 6,
 }
 
 local largeFont = love.graphics.newFont(36)
@@ -45,6 +46,10 @@ local images = {
         head = love.graphics.newImage('assets/characters/marisa_kirisame/headshot.png'),
     },
     [Enums.Characters.YOUMU_KONPAKU] = {
+        full = love.graphics.newImage('assets/characters/youmu_konpaku/full.png'),
+        head = love.graphics.newImage('assets/characters/youmu_konpaku/headshot.png'),
+    },
+    [Enums.Characters.LOCKED_CHARACTER] = {
         full = love.graphics.newImage('assets/characters/youmu_konpaku/full.png'),
         head = love.graphics.newImage('assets/characters/youmu_konpaku/headshot.png'),
     },
@@ -92,6 +97,7 @@ local generate_head_bounds = function(startX, startY)
                 y = headDrawY,
                 width = headWidth,
                 height = headHeight,
+                is_locked = false,
             }
 
             -- Move to the next column
@@ -103,6 +109,42 @@ local generate_head_bounds = function(startX, startY)
             end
         end
     end
+
+    -- Add locked character slots
+    local locked_data = images[Enums.Characters.LOCKED_CHARACTER]
+    if locked_data and locked_data.head then
+        for i = 1, local_state.locked_char_count do
+            -- Calculate the top-left corner of the current grid cell
+            local cellX = gridStartX + (currentCol - 1) * (xSpacing + xMargin)
+            local cellY = gridStartY + (currentRow - 1) * (ySpacing + yMargin)
+
+            -- Calculate the actual drawing position based on cell position and offset
+            local headDrawX = cellX + drawOffsetX
+            local headDrawY = cellY + drawOffsetY
+
+            local headWidth = locked_data.head:getWidth()
+            local headHeight = locked_data.head:getHeight()
+
+            -- Use a unique key for each locked character slot
+            local locked_key = "LOCKED_" .. i
+            bounds[locked_key] = {
+                x = headDrawX,
+                y = headDrawY,
+                width = headWidth,
+                height = headHeight,
+                is_locked = true,
+            }
+
+            -- Move to the next column
+            currentCol = currentCol + 1
+            -- If column exceeds max, reset column and move to the next row
+            if currentCol > columns then
+                currentCol = 1
+                currentRow = currentRow + 1
+            end
+        end
+    end
+
     return bounds
 end
 
@@ -210,10 +252,13 @@ local function draw_char_data()
 
             -- Define the Y position for the name and description (adjust as needed)
             local descY = first_bounds.y + first_bounds.height + 10 -- Below the first character's head
+            local toBeChangedLater = rightBound + 20
+            local belowCharacterFull = descY + 100
+
 
             -- Draw the character description below the name
             love.graphics.setFont(love.graphics.newFont(24)) -- Smaller font for description
-            love.graphics.printf(data.description, leftBound, descY, available_width, 'center')
+            love.graphics.printf(data.description, toBeChangedLater, belowCharacterFull, available_width, 'center')
         end
     end
 end
@@ -233,6 +278,7 @@ local function draw_char_full()
 end
 
 local function draw_heads(x, y)
+    -- Draw unlocked characters
     for _, character in ipairs(char_order) do
         local data = images[character]
         if data and data.head then
@@ -275,6 +321,20 @@ local function draw_heads(x, y)
             end
         end
     end
+
+    -- Draw locked characters
+    local locked_data = images[Enums.Characters.LOCKED_CHARACTER]
+    if locked_data and locked_data.head then
+        for i = 1, local_state.locked_char_count do
+            local locked_key = "LOCKED_" .. i
+            local headBounds = bounds[locked_key]
+            if headBounds then
+                love.graphics.setColor(1, 1, 1)
+                -- Draw the locked character head image
+                love.graphics.draw(locked_data.head, headBounds.x, headBounds.y)
+            end
+        end
+    end
 end
 
 local function capitalize(str)
@@ -298,7 +358,11 @@ local function draw_char_name()
         local available_width = rightBound - leftBound
 
         -- Format the character name for display
+        local char_bounds = bounds[character]
         local name = capitalize(character:gsub("_", " ")) -- Replace underscores with spaces
+        if char_bounds.is_locked then
+            name = "??????"
+        end
 
         -- Set text color to white
         love.graphics.setColor(1, 1, 1)
