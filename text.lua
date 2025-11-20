@@ -10,7 +10,7 @@ local function write_text_box(text, x, y, width, height, font, color)
     love.graphics.setColor(1, 1, 1, 1)                           -- Reset color to white
 end
 
-local TEXT_SPEED = 50 -- Characters per second
+local TEXT_SPEED = 200 -- Characters per second
 
 local function make_text_dialogue_setup(text, template, done)
     return {

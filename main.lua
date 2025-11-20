@@ -21,6 +21,7 @@ function love.load ()
         minwidth = width,      -- Minimum width (optional)
         minheight = height      -- Minimum height (optional)
     })
+    state = states.game
 	state.load ()
     states.settings.load() -- load settings if any saved
 end

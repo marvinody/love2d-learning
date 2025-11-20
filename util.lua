@@ -16,7 +16,13 @@ local function any(tbl, fn)
     return false
 end
 
+local function randomFromArray(arr)
+    local index = love.math.random(1, #arr)
+    return arr[index]
+end
+
 return {
     iany = iany,
     any = any,
+    randomFromArray = randomFromArray,
 }

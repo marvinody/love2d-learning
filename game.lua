@@ -57,7 +57,7 @@ local draw_vars = {
             y = 0.75,
             width = 0.9, -- width of the text box
             height = 0.2, -- height of the text box
-            typing_speed = 10,
+            typing_speed = 100,
         },
     },
     text_boxes = {},
@@ -138,6 +138,19 @@ local game = {
 
 local effects = {}
 
+local function open_dialog(text, doneFn, pic)
+    local text_box = Text.make_text_dialogue_setup(
+        text,
+        draw_vars.text_box_templates.enemy,
+        function()
+            table.remove(draw_vars.text_boxes, 1) -- remove the text box after it's done
+            doneFn()
+        end
+    )
+    table.insert(draw_vars.text_boxes, text_box)
+    GameUtil.set_in_dialog(game)
+end
+
 local function handle_effects(timing)
     -- Iterate through all effects and apply them based on the timing
     local effects_to_apply = Effect.filter_type(effects, timing)
@@ -166,7 +179,11 @@ local function initial_game_state()
         table.insert(effects, effect)
     end
 
+
+    -- add any enemy effects once those are implemented
     handle_effects(Enums.EffectTimings.START_OF_GAME)
+
+
 end
 
 local function assign_default_xy_to_rounds(total_rounds)
@@ -712,14 +729,8 @@ local function handle_shooting_generic(direction, bullet)
                     -- check if enemy was hit for the first time later
                     if not game[ENEMY].meta.hit_for_first_time and is_live_round then
                         game[ENEMY].meta.hit_for_first_time = true
-                        local text_box = Text.make_text_dialogue_setup("OW, that hurt! I'll show you real pain.", draw_vars.text_box_templates.enemy, 
-                            function()
-                                proceed_to_enemy()
-                                table.remove(draw_vars.text_boxes, 1) -- remove the text box after it's done
-                            end
-                        )
-                        table.insert(draw_vars.text_boxes, text_box)
-                        GameUtil.set_in_dialog(game)
+                        local possibleStrs = enemy_data[game[ENEMY].character].text[Enums.TextTimings.HIT_FOR_FIRST_TIME]
+                        open_dialog(Util.randomFromArray(possibleStrs), proceed_to_enemy)
                     else
                         proceed_to_enemy()
                     end
@@ -882,7 +893,11 @@ game.load = function()
     -- Initialize the game state
 
     initial_game_state()
-    generate_gun_rounds()
+    open_dialog(
+        Util.randomFromArray(enemy_data[game[ENEMY].character].text[Enums.TextTimings.ENTRANCE]),
+        generate_gun_rounds
+    )
+
 end
 
 game.update = function(dt)
