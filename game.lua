@@ -134,9 +134,25 @@ local game = {
     click_handlers = {
         onetime = {},
     },
+    camera = {
+        shake_x = 0,
+        shake_y = 0,
+    },
 }
 
 local effects = {}
+
+local function screen_shake(duration, intensity)
+    local shake_timer = duration or 0.3
+    intensity = intensity or 10
+    Timer.during(shake_timer, function(dt)
+        game.camera.shake_x = (math.random() * 2 - 1) * intensity
+        game.camera.shake_y = (math.random() * 2 - 1) * intensity
+    end, function()
+        game.camera.shake_x = 0
+        game.camera.shake_y = 0
+    end)
+end
 
 local function open_dialog(text, doneFn, pic)
     local text_box = Text.make_text_dialogue_setup(
@@ -688,6 +704,10 @@ local function handle_shooting_generic(direction, bullet)
     bullet.used = true
     local is_blank_round = (bullet.type == BulletTypes.BLANK)
     local is_live_round = (bullet.type == BulletTypes.LIVE)
+    local is_targetting_player = (direction == Actors.PLAYER)
+    local is_targetting_enemy = (direction == Actors.ENEMY)
+    local is_enemy_turn = (game.turn == Actors.ENEMY)
+    local is_player_turn = (game.turn == Actors.PLAYER)
 
     print("user:", game.turn, "going to:", direction, "bullet:", bullet.type)
     -- depending on direction, let's tween it to the target somewhere, randomly offset left/right
@@ -702,9 +722,10 @@ local function handle_shooting_generic(direction, bullet)
         game.gun.current_round = game.gun.current_round + 1
 
         if is_live_round then
-            if direction == Actors.PLAYER then
+            if is_targetting_player then
                 game[PLAYER].health = math.max(0, game[PLAYER].health - bullet.dmg)
-            elseif direction == Actors.ENEMY then
+                screen_shake(0.3, 10)
+            elseif is_targetting_enemy then
                 game[ENEMY].health = math.max(0, game[ENEMY].health - bullet.dmg)
             end
         end
@@ -720,14 +741,14 @@ local function handle_shooting_generic(direction, bullet)
             -- if turn and direction are the same, the actor gets to shoot again
             if game.turn == direction and is_blank_round then
                 -- no op. but we enable the buttons again for the player to shoot again if it's their turn
-                if game.turn == Actors.PLAYER then
+                if is_player_turn then
                     handle_pass_to_player_turn()
                 end
             else
                 -- we know that an actor shot the other actor, so we switch Actors no matter what at the end
-                if game.turn == Actors.PLAYER and game[PLAYER].health > 0 and game[ENEMY].health > 0 then
+                if is_player_turn and game[PLAYER].health > 0 and game[ENEMY].health > 0 then
                     -- check if enemy was hit for the first time later
-                    if not game[ENEMY].meta.hit_for_first_time and is_live_round then
+                    if not game[ENEMY].meta.hit_for_first_time and is_live_round and is_targetting_enemy then
                         game[ENEMY].meta.hit_for_first_time = true
                         local possibleStrs = enemy_data[game[ENEMY].character].text[Enums.TextTimings.HIT_FOR_FIRST_TIME]
                         open_dialog(Util.randomFromArray(possibleStrs), proceed_to_enemy)
@@ -916,6 +937,10 @@ game.draw = function()
     -- draw_debug_grid()
     -- draw background, sliightly grey
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
+    
+    love.graphics.push()
+    love.graphics.translate(game.camera.shake_x, game.camera.shake_y)
+    
     draw_background()
     draw_gun_rounds()
 
@@ -926,6 +951,8 @@ game.draw = function()
     draw_items()
     draw_text_boxes()
     draw_game_over_text()
+    
+    love.graphics.pop()
 end
 
 game.mousepressed = function(x, y, button, istouch, presses)
