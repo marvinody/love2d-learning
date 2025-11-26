@@ -1,0 +1,16 @@
+---@class StateManager
+---@field current_state table|nil
+---@field states table<string, table>
+---@field shared_context table
+---@field register fun(self: StateManager, name: string, state: table)
+---@field switch fun(self: StateManager, name: string, data?: table)
+---@field get_context fun(self: StateManager, key: string): any
+---@field set_context fun(self: StateManager, key: string, value: any)
+---@field clear_context fun(self: StateManager)
+---@field update fun(self: StateManager, dt: number)
+---@field draw fun(self: StateManager)
+---@field mousepressed fun(self: StateManager, x: number, y: number, button: number, istouch: boolean, presses: number)
+---@field mousereleased fun(self: StateManager, x: number, y: number, button: number, istouch: boolean, presses: number)
+---@field mousemoved fun(self: StateManager, x: number, y: number, dx: number, dy: number, istouch: boolean)
+---@field keypressed fun(self: StateManager, key: string, scancode: string, isrepeat: boolean)
+---@field resize fun(self: StateManager, w: number, h: number)

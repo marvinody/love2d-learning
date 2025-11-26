@@ -1,3 +1,6 @@
+---@type StateManager|nil
+local state_manager_ref = nil
+
 local settings = {
     -- Default settings
     volume = {
@@ -10,7 +13,8 @@ local settings = {
 }
 
 -- Function to load settings from a file
-settings.load = function()
+function settings:load(context, state_manager)
+    state_manager_ref = state_manager
     if love.filesystem.getInfo("settings.json") then
         local data = love.filesystem.read("settings.json")
         local loaded_settings = love.filesystem.decode("json", data)
@@ -18,19 +22,19 @@ settings.load = function()
             for k, v in pairs(loaded_settings) do
                 settings[k] = v
             end
-            settings.apply()
+            settings:apply()
         end
     end
 end
 
 -- Function to save settings to a file
-settings.save = function()
+function settings:save()
     local data = love.filesystem.encode("json", settings)
     love.filesystem.write("settings.json", data)
 end
 
 -- Function to apply settings (e.g., resolution, volume)
-settings.apply = function()
+function settings:apply()
     love.window.setMode(
         love.graphics.getWidth(),
         love.graphics.getHeight(),
@@ -41,12 +45,12 @@ settings.apply = function()
     -- Example: love.audio.setVolume(settings.volume.music)
 end
 
-settings.update = function(dt)
+function settings:update(dt)
     -- update later to draw settings menu
     -- probably not needed since events will handle it
 end
 
-settings.draw = function()
+function settings:draw()
     -- Draw settings menu
     love.graphics.setColor(1, 1, 1) -- Reset color to white
     love.graphics.print("Settings Menu", 10, 10)
@@ -59,29 +63,31 @@ end
 
 -- blank functions for mouse and key events
 
-settings.mousepressed = function(x, y, button, istouch, presses)
+function settings:mousepressed(x, y, button, istouch, presses)
 
 end
 
-settings.mousemoved = function(x, y, dx, dy, istouch)
+function settings:mousemoved(x, y, dx, dy, istouch)
 
 end
 
-settings.mousereleased = function(x, y, button, istouch, presses)
+function settings:mousereleased(x, y, button, istouch, presses)
 
 end
 
-settings.keypressed = function(key, scancode, isrepeat)
+function settings:keypressed(key, scancode, isrepeat)
     if key == "escape" then
         -- Exit settings menu or return to the previous state
         print("Exiting settings menu...")
+
         -- Here you would typically change the state back to the previous one
-        state = states.menu
-        state.load() -- Load the menu state if needed
+        if state_manager_ref then
+            state_manager_ref:switch("menu")
+        end
     end
 end
 
-settings.resize = function(w, h)
+function settings:resize(w, h)
     -- Handle window resize events if needed
     -- For example, you might want to adjust the layout of the settings menu
     print("Settings menu resized to: " .. w .. "x" .. h)

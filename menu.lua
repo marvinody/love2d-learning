@@ -1,3 +1,6 @@
+---@type StateManager|nil
+local state_manager_ref = nil
+
 local menu = {
     buttons = {},
     active_buttons = {
@@ -27,15 +30,16 @@ local menu = {
     selected_background_color = { 1, 1, 0 } -- yellow5
 }
 
-menu.load = function()
+function menu:load(context, state_manager)
     -- Load any resources needed for the menu here
+    state_manager_ref = state_manager
 end
 
-menu.update = function(dt)
+function menu:update(dt)
     -- Update the menu state here, if needed
 end
 
-menu.draw = function()
+function menu:draw()
     -- Draw the menu here
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
     love.graphics.setColor(1, 1, 1)    -- Set color to white for drawing
@@ -71,7 +75,7 @@ menu.draw = function()
 end
 
 
-menu.mousepressed = function(x, y, button, istouch, presses)
+function menu:mousepressed(x, y, button, istouch, presses)
     -- Handle mouse press events here
     if button == 1 then -- Left mouse button
         for _, btn in ipairs(menu.active_buttons) do
@@ -83,24 +87,20 @@ menu.mousepressed = function(x, y, button, istouch, presses)
             if x >= bx and x <= (bx + bw) and y >= by and y <= (by + bh) then
                 -- Button was clicked, perform the action associated with it
                 if btn.name == "start_game" then
-                    -- Start the game or transition to the game state
-                    print("Starting game...")
-                    -- Here you would typically change the state to the game state
-                    state = states.char_select
-                    state.load() -- Load the game state if needed
+                    if state_manager_ref then
+                        state_manager_ref:switch("char_select")
+                    end
                 elseif btn.name == "settings" then
-                    -- Open settings menu or perform the associated action
-                    print("Opening settings...")
-                    -- Here you would typically change the state to the settings state
-                    state = states.settings
-                    state.load() -- Load the settings state if needed
+                    if state_manager_ref then
+                        state_manager_ref:switch("settings")
+                    end
                 end
             end
         end
     end
 end
 
-menu.mousemoved = function(x, y, dx, dy, istouch)
+function menu:mousemoved(x, y, dx, dy, istouch)
     -- Handle mouse movement events here
     -- Check if the mouse is over any buttons and update their state if needed
     for _, button in ipairs(menu.active_buttons) do
@@ -108,7 +108,6 @@ menu.mousemoved = function(x, y, dx, dy, istouch)
         local by = button.y * love.graphics.getHeight()
         local bw = button.w * love.graphics.getWidth()
         local bh = button.h * love.graphics.getHeight()
-
         if x >= bx and x <= (bx + bw) and y >= by and y <= (by + bh) then
             -- Mouse is over the button, you can change its state or appearance here
             -- e.g., highlight the button or show a tooltip
@@ -121,15 +120,15 @@ menu.mousemoved = function(x, y, dx, dy, istouch)
     -- You can also handle dragging or other mouse interactions here
 end
 
-menu.mousereleased = function(x, y, button, istouch, presses)
+function menu:mousereleased(x, y, button, istouch, presses)
     -- Handle mouse release events here
 end
 
-menu.keypressed = function(key, scancode, isrepeat)
+function menu:keypressed(key, scancode, isrepeat)
     -- Handle key press events here
 end
 
-menu.resize = function()
+function menu:resize()
     -- Handle resizing of the menu here
 end
 
