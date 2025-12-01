@@ -8,6 +8,9 @@ local enemy_data = require('enemy_data')
 local Effect = require('effect')
 local PLAYER, ENEMY = Enums.Actors.PLAYER, Enums.Actors.ENEMY
 
+---@type StateManager|nil
+local state_manager_ref = nil
+
 local Actors, BulletTypes = Enums.Actors, Enums.BulletTypes
 local draw_vars = {
     gun = {
@@ -73,7 +76,7 @@ local default_item_rates = {
 
 local game = {
     [PLAYER] = {
-        character = Enums.Characters.REIMU_HAKUREI, -- may be updated by char_select
+        character = Enums.Characters.REIMU_HAKUREI, -- may be updated by game load
         items = {
 
         },
@@ -907,7 +910,8 @@ local function load_images()
 end
 
 
-game.load = function()
+function game:load(context, state_manager)
+    state_manager_ref = state_manager
     math.randomseed(os.time())
     -- Load any resources needed for the game here
     load_images() -- Load images for the game
@@ -921,7 +925,7 @@ game.load = function()
 
 end
 
-game.update = function(dt)
+function game:update(dt)
     -- Update the game state here, if needed
     Timer.update(dt)
 
@@ -933,7 +937,7 @@ game.update = function(dt)
     end
 end
 
-game.draw = function()
+function game:draw()
     -- draw_debug_grid()
     -- draw background, sliightly grey
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
@@ -955,17 +959,17 @@ game.draw = function()
     love.graphics.pop()
 end
 
-game.mousepressed = function(x, y, button, istouch, presses)
+function game:mousepressed(x, y, button, istouch, presses)
     -- Handle mouse press events here
     handle_mousepressed_buttons(x, y, button)
 end
 
-game.mousemoved = function(x, y, dx, dy, istouch)
+function game:mousemoved(x, y, dx, dy, istouch)
     -- Handle mouse movement events here 
     handle_mousemove_buttons(x, y, dx, dy)
 end
 
-game.mousereleased = function(x, y, button, istouch, presses)
+function game:mousereleased(x, y, button, istouch, presses)
     -- Handle mouse release events here
     handle_mousereleased_buttons(x, y, button)
 
@@ -996,11 +1000,11 @@ game.mousereleased = function(x, y, button, istouch, presses)
     end
 end
 
-game.keypressed = function(key, scancode, isrepeat)
+function game:keypressed(key, scancode, isrepeat)
     -- Handle key press events here
 end
 
-game.resize = function()
+function game:resize()
     -- Handle resizing of the game here
 end
 

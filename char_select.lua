@@ -1,5 +1,8 @@
 local Enums = require('enums')
 
+---@type StateManager|nil
+local state_manager_ref = nil
+
 local char_select = {
     text_color = { 0, 0, 0 },                -- black
     disabled_text_color = { 0.7, 0.7, 0.7 }, -- gray_70
@@ -150,11 +153,12 @@ end
 
 local bounds = generate_head_bounds(100, 100)
 
-char_select.load = function()
+function char_select:load(context, state_manager)
     -- Load any resources needed for the char_select here
+    state_manager_ref = state_manager
 end
 
-char_select.update = function(dt)
+function char_select:update(dt)
     -- Update the char_select local_state here, if needed
 end
 
@@ -200,13 +204,15 @@ local mousereleased_active_buttons = function(x, y, button, istouch, presses)
             local bh = btn.h * love.graphics.getHeight()
             if x >= bx and x <= (bx + bw) and y >= by and y <= (by + bh) then
                 -- Button was clicked, perform the action associated with it
-                if btn.name == "start_game" then
+                if btn.name == "start_game" and state_manager_ref then
                     -- Start the game or transition to the game local_state
                     print("Starting game...")
                     -- Here you would typically change the local_state to the game local_state
-                    state = states.game
-                    state[Enums.Actors.PLAYER].character = local_state.selected_character
-                    state.load() -- Load the game local_state if needed
+                    state_manager_ref:switch("game", {
+                        [Enums.Actors.PLAYER] = {
+                            character = local_state.selected_character
+                        }
+                    })
                 end
             end
         end
@@ -377,7 +383,7 @@ local function draw_char_name()
 end
 
 
-char_select.draw = function()
+function char_select:draw()
     love.graphics.clear(0.1, 0.1, 0.1) -- Clear the screen with a dark color
     love.graphics.setColor(1, 1, 1)    -- Set color to white for drawing
     local x, y = 100, 100
@@ -392,7 +398,7 @@ char_select.draw = function()
     -- Draw any additional UI elements here
 end
 
-char_select.mousepressed = function(x, y, button, istouch, presses)
+function char_select:mousepressed(x, y, button, istouch, presses)
     -- Handle mouse press events here
     if button == 1 then -- Left mouse button
         -- Iterate through the bounds of each character head
@@ -409,7 +415,7 @@ char_select.mousepressed = function(x, y, button, istouch, presses)
 
 end
 
-char_select.mousemoved = function(x, y, dx, dy, istouch)
+function char_select:mousemoved(x, y, dx, dy, istouch)
     -- Iterate through the bounds of each character head
     local hovered = false
     for character, headBounds in pairs(bounds) do
@@ -438,12 +444,12 @@ char_select.mousemoved = function(x, y, dx, dy, istouch)
     mousemoved_active_buttons(x, y, dx, dy, istouch)
 end
 
-char_select.mousereleased = function(x, y, button, istouch, presses)
+function char_select:mousereleased(x, y, button, istouch, presses)
     -- Handle mouse release events here
     mousereleased_active_buttons(x, y, button, istouch, presses)
 end
 
-char_select.keypressed = function(key, scancode, isrepeat)
+function char_select:keypressed(key, scancode, isrepeat)
     -- Handle key press events here
 
     -- Check if either left or right Alt key is pressed
@@ -463,7 +469,7 @@ char_select.keypressed = function(key, scancode, isrepeat)
     end
 end
 
-char_select.resize = function()
+function char_select:resize()
     -- Handle resizing of the char_select here
 end
 
